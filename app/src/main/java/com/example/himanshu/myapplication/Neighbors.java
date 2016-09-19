@@ -39,8 +39,9 @@ public class Neighbors extends AppCompatActivity {
         setContentView(R.layout.activity_neighbors);
 
 
-
-
+        //test test1=new test();
+        //byte bytesFortest1[]=Serializer.ObjectToBytes(test1);
+       // Log.d("Neighbors","The length of byte array to be sent is:"+bytesFortest1.length);
         IntentFilter filter1 = new IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED);
         IntentFilter filter2 = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED);
         IntentFilter filter3 = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -50,16 +51,17 @@ public class Neighbors extends AppCompatActivity {
 
 
         ////Directly trying to connect to Himanshu Phone
-       /* BluetoothDevice device= BluetoothAdapter.getDefaultAdapter().getRemoteDevice("D0:87:E2:4E:7A:2B");
+        BluetoothDevice device= BluetoothAdapter.getDefaultAdapter().getRemoteDevice("D0:87:E2:4E:7A:2B");
         if(device==null)
         {
             Log.d("Neighbors","Device HimanshuTablet is null");
             System.exit(1);
         }
-        ConnectThread newConnectThread=new ConnectThread(device);
-        Log.d("Neighbors","value of socket is:"+newConnectThread.mmSocket);
-        newConnectThread.start();
-        */
+       // ConnectThread newConnectThread=new ConnectThread(device);
+        //Log.d("Neighbors","value of socket is:"+newConnectThread.mmSocket);
+        //newConnectThread.start();
+
+
         mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
         generalBTFuncs=new GeneralBTFuncs();
         ArrayAdapter<String> mArrayAdapter= generalBTFuncs.runDiscovery(this,android.R.layout.simple_list_item_1,this,mydatabase);
@@ -93,20 +95,19 @@ public class Neighbors extends AppCompatActivity {
                         listOfClients.mName[i]=clientsInRange[i];
                         Log.d("Neighbors","Service for client"+(i+1)+"started");
                         BluetoothDevice device= BluetoothAdapter.getDefaultAdapter().getRemoteDevice(clientsInRange[i]);
-                        ConnectThread newConnectThread=new ConnectThread(device);
-                        newConnectThread.start();
-                        deviceToSocket.put(device,newConnectThread.mmSocket);
-                        Log.d("Neighbors","Connected Socket is:"+newConnectThread.mmSocket);
-
+                        if(device.getName()!=null) {
+                            if(device.getName().equals("HimanshuTablet")) {
+                                ConnectThread newConnectThread = new ConnectThread(device, getApplicationContext());
+                                newConnectThread.start();
+                                deviceToSocket.put(device, newConnectThread.mmSocket);
+                                Log.d("Neighbors", "Device and socket while connecting are:" + device.getName() + "  and  " + newConnectThread.mmSocket);
+                            }
+                        }
 
                     }
                     Log.d("Neighbors","listOfClients.mName[0]:"+listOfClients.mName[0]);
 
-                    /*
-                    Intent i=new Intent(getApplicationContext(),ConnectToMultipleClients.class);
-                    i.putExtra("clientList",listOfClients);
-                    startService(i);
-                    */
+
                 } finally {
                     cursor.close();
                 }
@@ -155,7 +156,8 @@ public class Neighbors extends AppCompatActivity {
 
             }
             else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
-                Log.d("Neighbors","Device connected is "+device.getName());
+                /*
+                Log.d("Neighbors","Device connected and socket for comm after connection are "+device.getName()+" and "+deviceToSocket.get(device));
 
                         Cursor cursorForTagsForLocalDevice=mydatabase.rawQuery("SELECT GROUP_CONCAT(Tags) from IMAGE_TAG_RELATION",null);
                        try {
@@ -181,8 +183,7 @@ public class Neighbors extends AppCompatActivity {
                            System.arraycopy(preambleSomething,0,preamble,0,preambleSomething.length);
 
 
-                            ConnectedThreadWithRequestCodes newConnectedThread=new ConnectedThreadWithRequestCodes(deviceToSocket.get(device));
-
+                           ConnectedThreadWithRequestCodes newConnectedThread=new ConnectedThreadWithRequestCodes(deviceToSocket.get(device));
                            newConnectedThread.write(preamble);
                            Log.d("Neighbors","Tags for this device found from db are:"+tagsForLocalDevice);
                            Cursor cursorDeviceTag=mydatabase.rawQuery("SELECT * from DEVICE_TAG",null);
@@ -195,7 +196,7 @@ public class Neighbors extends AppCompatActivity {
                        {
                             Log.d("Neighbors","Exception occured:"+e);
                        }
-
+                    */
 
             }
             else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {

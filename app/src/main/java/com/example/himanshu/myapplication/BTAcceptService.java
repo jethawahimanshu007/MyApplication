@@ -65,7 +65,7 @@ public class BTAcceptService extends IntentService {
     protected void onHandleIntent(Intent intent) {
         try{
             Log.d("BTAcceptService","BTService called");
-            AcceptThread at=new AcceptThread();
+            AcceptThread at=new AcceptThread(getBaseContext());
             at.run();
         }
         catch(Exception e)

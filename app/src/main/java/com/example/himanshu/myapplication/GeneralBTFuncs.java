@@ -72,7 +72,7 @@ public class GeneralBTFuncs {
                         Toast toast=Toast.makeText(context,"Discovery finished", Toast.LENGTH_SHORT);
                         toast.setMargin(50,50);
                         toast.show();
-                        context.unregisterReceiver(mReceiver);
+                        //context.unregisterReceiver(mReceiver);
 
                     }
                     else

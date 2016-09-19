@@ -15,5 +15,7 @@ public class DbTableCreation {
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS DEVICE_TAG(deviceName VARCHAR, deviceAddr VARCHAR, tags VARCHAR,PRIMARY KEY(deviceName,deviceAddr))");
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS IMAGE_TAG_RELATION(PicturePath VARCHAR,Tags VARCHAR,PRIMARY KEY(PicturePath));");
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS BLUETOOTH_DEVICES_IN_RANGE(BTDeviceMacAddr VARCHAR,BTDeviceName VARCHAR,PRIMARY KEY(BTDeviceMacAddr))");
+        mydatabase.execSQL("CREATE TABLE IF NOT EXISTS SEND_IMAGE_TBL(BTDeviceMacAddr VARCHAR,PicturePath VARCHAR,flagForSent INTEGER,PRIMARY KEY(BTDeviceMacAddr,PicturePath))");
+
     }
     }

@@ -26,6 +26,7 @@ public class BTService extends IntentService {
     public BTService(SQLiteDatabase mydatabaseInput) {
         super("BTService");
         mydatabase=mydatabaseInput;
+
     }
 
     /**

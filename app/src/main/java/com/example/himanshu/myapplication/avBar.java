@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
+import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -18,8 +19,25 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+
+import afrl.phoenix.core.*;
+//import afrl.phoenix.services.repository.H2RepoLogic;
+
+
 public class avBar extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
+
+
+
+
+    //H2RepoLogic.STORES st=new H2RepoLogic.STORES();
 
     // Storage Permissions
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
@@ -29,6 +47,7 @@ public class avBar extends AppCompatActivity
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.ACCESS_FINE_LOCATION
     };
+
 
     /**
      * Checks if the app has permission to write to device storage
@@ -60,7 +79,15 @@ public class avBar extends AppCompatActivity
         super.onCreate(savedInstanceState);
         Intent serviceIntent = new Intent(this,BTAcceptService.class);
 
+
         this.startService(serviceIntent);
+        try {
+            dbFunction();
+        }
+        catch(Exception e)
+        {
+            Log.d("avBar","Exception has occured in avBar while calling dbFunction:"+e);
+        }
         ///Db table creation
         DbTableCreation dbTableCreation=new DbTableCreation();
         dbTableCreation.createTables(this);
@@ -138,4 +165,16 @@ public class avBar extends AppCompatActivity
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
+    public void dbFunction() throws Exception
+    {
+        //ClientAddress ca=new ClientAddress("tp","127.0.0.1");
+
+
+        //H2RepoLogic h2RepoLogic = new H2RepoLogic("H2RepoLogic", ca, H2RepoLogic.STORES.PACKETS);
+
+
+    }
+
+
 }
+
