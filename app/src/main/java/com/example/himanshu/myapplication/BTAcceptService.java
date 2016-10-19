@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
 import java.util.UUID;
@@ -18,6 +19,7 @@ import java.util.UUID;
  * helper methods.
  */
 public class BTAcceptService extends IntentService {
+    SQLiteDatabase mydatabase;
     // TODO: Rename actions, choose action names that describe tasks that this
     // IntentService can perform, e.g. ACTION_FETCH_NEW_ITEMS
     private static final String ACTION_FOO = "com.example.himanshu.myapplication.action.FOO";
@@ -29,7 +31,10 @@ public class BTAcceptService extends IntentService {
 
     public BTAcceptService() {
         super("BTAcceptService");
+        //Log.d("BtAcceptService","Context value in BTAcceptService:"+getApplicationContext());
+       // mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
     }
+
 
     /**
      * Starts this service to perform action Foo with the given parameters. If
@@ -64,8 +69,11 @@ public class BTAcceptService extends IntentService {
     @Override
     protected void onHandleIntent(Intent intent) {
         try{
+            Log.d("BTAcceptService","");
             Log.d("BTAcceptService","BTService called");
-            AcceptThread at=new AcceptThread(getBaseContext());
+            mydatabase=openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
+            Log.d("BTAcceptService","If mydatabase is null:"+mydatabase);
+            AcceptThread at=new AcceptThread(getBaseContext(),openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null));
             at.run();
         }
         catch(Exception e)

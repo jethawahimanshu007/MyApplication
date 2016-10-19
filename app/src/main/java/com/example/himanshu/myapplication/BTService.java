@@ -23,6 +23,7 @@ public class BTService extends IntentService {
     private static final String EXTRA_PARAM2 = "com.example.himanshu.myapplication.extra.PARAM2";
     private static  SQLiteDatabase mydatabase;
 
+
     public BTService(SQLiteDatabase mydatabaseInput) {
         super("BTService");
         mydatabase=mydatabaseInput;

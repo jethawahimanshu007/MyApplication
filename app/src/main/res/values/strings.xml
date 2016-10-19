@@ -17,4 +17,6 @@
     <string name="tags">Enter tags</string>
     <string name="button_for_selecting_image">Select image</string>
     <string name="show_bt_devices_in_range">Devices in range</string>
+    <string name="title_activity_gallery">Gallery</string>
+    <string name="title_activity_show_received_images">ShowReceivedImages</string>
 </resources>

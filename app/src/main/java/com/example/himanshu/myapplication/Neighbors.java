@@ -23,6 +23,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class Neighbors extends AppCompatActivity {
     SQLiteDatabase mydatabase;
@@ -63,74 +65,22 @@ public class Neighbors extends AppCompatActivity {
 
 
         mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
-        generalBTFuncs=new GeneralBTFuncs();
-        ArrayAdapter<String> mArrayAdapter= generalBTFuncs.runDiscovery(this,android.R.layout.simple_list_item_1,this,mydatabase);
+        generalBTFuncs=new GeneralBTFuncs(getApplicationContext(),android.R.layout.simple_list_item_1,this,mydatabase);
+        generalBTFuncs.run();
+
+
+       /* ArrayAdapter<String> mArrayAdapter= generalBTFuncs.runDiscovery(this,android.R.layout.simple_list_item_1,this,mydatabase);
         if(mArrayAdapter!=null) {
             Log.d("Neighbors", "ArrayAdapter is not null");
-            //Log.d("Neighbors","The first item in arrayadapter is:"+mArrayAdapter.getItem(0));
         }
-
-        Button showDevicesInRange=(Button)findViewById(R.id.devices_in_range);
-        showDevicesInRange.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                Cursor cursor=mydatabase.rawQuery("SELECT * from BLUETOOTH_DEVICES_IN_RANGE",null);
-
-                try {
-                    while (cursor.moveToNext()) {
-                        String deviceMacAddr=cursor.getString(0);
-                        String deviceName=cursor.getString(1);
-                        al.add(deviceMacAddr);
-                        Toast.makeText(getApplicationContext(), deviceMacAddr+":"+deviceName +" is in range", Toast.LENGTH_SHORT).show();
-                    }
-                    clientsInRange=new String[al.size()];
-                    al.toArray(clientsInRange);
-
-
-                    Log.d("Neighbors","ClientsInRange[0]:"+clientsInRange[0]);
-                    ClientListToConnect listOfClients=new ClientListToConnect();
-                    listOfClients.mData=clientsInRange.length;
-                    listOfClients.mName=new String[listOfClients.mData];
-                    for(int i=0;i<clientsInRange.length;i++)
-                    {
-                        listOfClients.mName[i]=clientsInRange[i];
-                        Log.d("Neighbors","Service for client"+(i+1)+"started");
-                        BluetoothDevice device= BluetoothAdapter.getDefaultAdapter().getRemoteDevice(clientsInRange[i]);
-                        if(device.getName()!=null) {
-                            if(device.getName().equals("HimanshuTablet")) {
-                                ConnectThread newConnectThread = new ConnectThread(device, getApplicationContext());
-                                newConnectThread.start();
-                                deviceToSocket.put(device, newConnectThread.mmSocket);
-                                Log.d("Neighbors", "Device and socket while connecting are:" + device.getName() + "  and  " + newConnectThread.mmSocket);
-                            }
-                        }
-
-                    }
-                    Log.d("Neighbors","listOfClients.mName[0]:"+listOfClients.mName[0]);
-
-
-                } finally {
-                    cursor.close();
-                }
-
-                Iterator iterator = al.iterator();
-                while (iterator.hasNext()) {
-                    String macAddrInContext=(String)iterator.next();
-                   Log.d("Neighbors","Device is:"+macAddrInContext);
-
-                   // ClientConnection cc=new ClientConnection(mHandler,(String)iterator.next());
-                    //cc.connectToClient();
-
-                    //ConnectThread ct=new ConnectThread(BluetoothAdapter.getDefaultAdapter().getRemoteDevice((String)iterator.next()));
-                }
-
-            }
-        });
+        */
 
     }
 
     @Override
     protected void onDestroy() {
 
+        //mydatabase.close();
         Log.d("Neighbors","stopping discovery");
         BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         mBluetoothAdapter.cancelDiscovery();
@@ -201,6 +151,7 @@ public class Neighbors extends AppCompatActivity {
             }
             else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
 
+
             }
             else if (BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED.equals(action)) {
 
@@ -210,4 +161,6 @@ public class Neighbors extends AppCompatActivity {
             }
         }
     };
+
+
 }

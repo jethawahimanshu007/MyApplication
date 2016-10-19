@@ -1,8 +1,12 @@
 package com.example.himanshu.myapplication;
 
+import android.bluetooth.BluetoothSocket;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Himanshu on 9/7/2016.
@@ -89,14 +93,17 @@ public class DbFunctions {
     {
         String imagePaths="";
         Cursor cursorForTagsForLocalDevice=null;
-        String sqlStatement="SELECT GROUP_CONCAT(PicturePath) from IMAGE_TAG_RELATION where tags='"+tags+"'";
+        String sqlStatement="SELECT GROUP_CONCAT(PicturePath|| '--' ||Latitude|| '--' ||Longitude|| '--' ||Timestamp|| '--' ||tags ) from IMAGE_TAG_RELATION where tags='"+tags+"'";
+       // String sqlStatement="SELECT GROUP_CONCAT(PicturePath|| '--' ||Latitude|| '--' ||Longitude|| '--' ||Timestamp|| '--' ||tags ) from IMAGE_TAG_RELATION where tags='"+tags+"'";
         try {
+
             cursorForTagsForLocalDevice = mydatabase.rawQuery(sqlStatement, null);
             if (cursorForTagsForLocalDevice != null) {
                 cursorForTagsForLocalDevice.moveToFirst();
                 imagePaths = cursorForTagsForLocalDevice.getString(0);
 
             }
+            Log.d("DbFunctions","The image paths are:"+imagePaths);
         }
         catch(Exception e)
         {
@@ -111,5 +118,117 @@ public class DbFunctions {
         mydatabase.execSQL(sqlStatement);
         Log.d("DbFunctions","SEndImageTbl function--Hopefully SEND_IMAGE_TBL written");
     }
+    public void insertIntoDeviceReceiptTbl(SQLiteDatabase mydatabase,String deviceName,String deviceMacAddr,String tags,String latitude, String longitude,String timestamp,String destDeviceName,String destDeviceAddr,String mime,String format,String fileName )
+    {
+        try {
+
+
+            String sqlStatement = "";
+            sqlStatement = "INSERT INTO DEVICE_IMAGE_RECEIPT values('" + deviceName + "','" + deviceMacAddr + "','"
+                    + tags + "','" + latitude + "','" + longitude + "','" + timestamp +
+                    "','" +destDeviceName+"','"+destDeviceAddr+"','"+mime+"','"+format+  "','"+fileName +"')";
+            mydatabase.execSQL(sqlStatement);
+            Log.d("dbfuncs","lat and long and tags are"+latitude+longitude+timestamp);
+            Log.d("DbFunctions", "insertIntoDeviceReceiptTbl function--Hopefully DEVICE_IMAGE_RECEIPT written");
+        }
+        catch(Exception e)
+        {
+            Log.d("dbFunctions","Exception occured in inserting into DEVICE_IMAGE_RECEIPT"+e);
+        }
+    }
+    public  String[] getReceivedImages(SQLiteDatabase mydatabase) {
+        String[] someArray=null;
+        Cursor cursorForImages=null;
+        List<String> imagepaths = new ArrayList<String>();
+        int numOfImages = 0;
+        //////
+        try {
+            cursorForImages = mydatabase.rawQuery("SELECT fileName from DEVICE_IMAGE_RECEIPT ", null);
+            if (cursorForImages == null)
+                Log.d("DbFuncGetTags", "cursorForImages isnull");
+        } catch (Exception e) {
+            Log.d("DbFUncs", "Exception occurred, hahahaha!::" + e);
+        }
+        try {
+            String image = new String();
+
+            try {
+
+                if (cursorForImages != null)
+                    while (cursorForImages.moveToNext()) {
+                        image = cursorForImages.getString(0);
+                        imagepaths.add(image);
+                        numOfImages++;
+                    }
+                if (numOfImages != 0) {
+                    someArray = imagepaths.toArray(someArray);
+
+                }
+
+
+            } catch (Exception e) {
+                Log.d("ConnectThread", "Exception occured in sqlite query!!! ::" + e);
+            }
+
+
+            //////
+            return someArray;
+        }
+        catch(Exception e)
+        {
+
+        }
+        return someArray;
+    }
+
+
+    public void insertIntoDevicesConnected(SQLiteDatabase mydatabase, String macAddr, String socket)
+    {
+
+        try {
+            String sqlStatement = "INSERT INTO DEVICES_CURRENTLY_CONNECTED values('" + macAddr + "','" + socket + "')";
+            mydatabase.execSQL(sqlStatement);
+        }
+        catch(Exception e)
+        {
+            Log.d("DbFunctions","Exception occured in insertIntoDevicesConnected:"+e);
+        }
+    }
+
+    public int ifDeviceConnected(SQLiteDatabase mydatabase, String macAddr)
+    {
+
+        Cursor cursorForConnectedDevices = mydatabase.rawQuery("SELECT * from DEVICES_CURRENTLY_CONNECTED where BTDeviceMacAddr='"+macAddr+"'", null);
+        if(cursorForConnectedDevices==null)
+            return 0;
+        else
+        return 1;
+
+
+    }
+    public void deleteConnectedDevices(SQLiteDatabase mydatabase)
+    {
+        mydatabase.execSQL("DELETE from DEVICES_CURRENTLY_CONNECTED");
+    }
+    public void showConnectedDevices(SQLiteDatabase mydatabase)
+    {
+        Cursor cursorForConnectedDevices = mydatabase.rawQuery("SELECT * from DEVICES_CURRENTLY_CONNECTED", null);
+        if (cursorForConnectedDevices != null)
+            while (cursorForConnectedDevices.moveToNext()) {
+                Log.d("DbFuncs","Connected device is:"+cursorForConnectedDevices.getString(0));
+            }
+        else
+        {
+            Log.d("DbFuncs","No device is currently connected");
+        }
+    }
+
+    /*
+    public BluetoothSocket getSocketForDevice(SQLiteDatabase mydatabase)
+    {
+        Cursor cursorForConnectedDevices = mydatabase.rawQuery("SELECT * from DEVICES_CURRENTLY_CONNECTED where BTDeviceMacAddr='"+macAddr+"'", null);
+    }
+*/
+
 
 }

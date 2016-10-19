@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.google.android.providers.gsf.permisson.READ_GSERVICES" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
@@ -32,19 +35,22 @@
             android:name=".ClientService"
             android:exported="false" />
 
-        <activity
-            android:name=".MainActivity"
-            android:label="@string/title_activity_av_bar"
-            android:theme="@style/AppTheme.NoActionBar" />
         <activity android:name=".GalleryTags" />
         <activity android:name=".Neighbors" />
-
-        <service
-            android:name=".BTService"
-            android:exported="false" />
+        <activity
+            android:name=".ShowReceivedImages"
+            android:label="@string/title_activity_show_received_images"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
         <service
             android:name=".ConnectToMultipleClients"
-            android:exported="false"></service>
+            android:exported="false" />
+
+
+
+
+
+
     </application>
+
 
 </manifest>
