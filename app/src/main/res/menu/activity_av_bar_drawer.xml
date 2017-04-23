@@ -17,7 +17,20 @@
         <item
             android:id="@+id/nav_manage"
             android:icon="@drawable/ic_menu_manage"
-            android:title="Tools" />
+            android:title="Add keywords" />
+        <item
+            android:id="@+id/TSRsAct"
+            android:icon="@drawable/ic_menu_manage"
+            android:title="TSRs" />
+        <item
+            android:id="@+id/OwnMessagesAct"
+            android:icon="@drawable/ic_menu_manage"
+            android:title="Own Messages" />
+        <item
+            android:id="@+id/IncentiveAct"
+            android:icon="@drawable/ic_menu_manage"
+            android:title="Incentives" />
+
     </group>
 
     <item android:title="Lists">

@@ -31,26 +31,30 @@
         <service
             android:name=".BTAcceptService"
             android:exported="false" />
-        <service
-            android:name=".ClientService"
-            android:exported="false" />
 
         <activity android:name=".GalleryTags" />
         <activity android:name=".Neighbors" />
         <activity
             android:name=".ShowReceivedImages"
             android:label="@string/title_activity_show_received_images"
-            android:theme="@style/AppTheme.NoActionBar"></activity>
-        <service
-            android:name=".ConnectToMultipleClients"
-            android:exported="false" />
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity android:name=".CameraActivity" />
+        <activity android:name=".ReceivedFileDetails" />
+        <activity android:name=".DetailsActivity" />
 
+        <receiver android:name=".ReceiverBroadcast">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+                <action android:name="android.bluetooth.adapter.action.STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
-
-
-
-
+        <activity android:name=".AddKeywords" />
+        <activity android:name=".ConnectedDevices" />
+        <activity android:name=".TSRsActivity" />
+        <activity android:name=".OwnMessagesActivity" />
+        <activity android:name=".IncentiveActivity"></activity>
     </application>
-
 
 </manifest>

@@ -12,4 +12,29 @@
     tools:context="com.example.himanshu.myapplication.avBar"
     tools:showIn="@layout/app_bar_av_bar">
 
+    <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:id="@+id/radioGroup">
+        <RadioButton android:id="@+id/radio_sergeant"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sergeant"
+            android:onClick="onRadioButtonClicked"/>
+        <RadioButton android:id="@+id/radio_soldier"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Soldier"
+            android:onClick="onRadioButtonClicked"/>
+    </RadioGroup>
+
+    <TextView
+        android:id="@+id/roleTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Role"
+        android:visibility="gone"/>
+
+
 </RelativeLayout>

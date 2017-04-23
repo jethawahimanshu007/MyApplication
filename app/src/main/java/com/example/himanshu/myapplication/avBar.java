@@ -3,52 +3,37 @@ package com.example.himanshu.myapplication;
 import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.content.ContentValues;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.location.Location;
-import android.location.LocationManager;
-import android.net.Uri;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Bundle;
 import android.os.Environment;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v4.app.ActivityCompat;
-import android.util.Log;
-import android.view.View;
 import android.support.design.widget.NavigationView;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.TextView;
 import android.widget.Toast;
-
-
-import org.rauschig.jarchivelib.ArchiveFormat;
-import org.rauschig.jarchivelib.Archiver;
-import org.rauschig.jarchivelib.ArchiverFactory;
-import org.rauschig.jarchivelib.CompressionType;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.nio.channels.FileChannel;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -60,6 +45,8 @@ public class avBar extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     // Storage Permissions
+    public  static Activity activityMain;
+
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static final int REQUEST_FINE_LOCATION = 1;
     private static String[] PERMISSIONS_STORAGE = {
@@ -92,54 +79,31 @@ public class avBar extends AppCompatActivity
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_av_bar);
+
+        final SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
+
         Intent serviceIntent = new Intent(this,BTAcceptService.class);
+        String macAddress = android.provider.Settings.Secure.getString(getContentResolver(), "bluetooth_address");
+        Log.d("avBar","Mac address is:"+macAddress);
+
 
         Log.d("avBar","Context::"+this);
         this.startService(serviceIntent);
 
-        Log.d("avBar","Saving locally a testImage");
-        testImageSavingLocal();
-        Log.d("avBar","function testImageSavingLocal returned");
-        String paths[]=new String[1];
-        Archiver archiver = ArchiverFactory.createArchiver(ArchiveFormat.TAR, CompressionType.GZIP);
-        try {
-            archiver.extract(new File(Environment.getExternalStorageDirectory().getAbsoluteFile() + "/some.tar.gz"), new File(Environment.getExternalStorageDirectory().getAbsoluteFile() + "/some"));
-        }
-        catch(Exception e)
-        {
-
-        }
-
-        try {
-            dbFunction();
-        }
-        catch(Exception e)
-        {
-            Log.d("avBar","Exception has occured in avBar while calling dbFunction:"+e);
-        }
 
 
 
-        Log.d("avBar","The Mac address of my device is:"+BluetoothAdapter.getDefaultAdapter().getAddress());
 
-        BluetoothDevice device= BluetoothAdapter.getDefaultAdapter().getRemoteDevice("D0:87:E2:4E:7A:2B");
-        //BluetoothDevice device1= BluetoothAdapter.getDefaultAdapter().getRemoteDevice("28:BA:B5:B5:82:8F");
-        if(device==null)
-        {
-            Log.d("Neighbors","Device HimanshuTablet is null");
-            System.exit(1);
-        }
+        ////Make bluetooth always discoverable
 
+        Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0);
+        startActivity(discoverableIntent);
+        final Activity current=this;
+        GeneralBTFuncs generalBTFuncs = new GeneralBTFuncs(getApplicationContext(), android.R.layout.simple_list_item_1,current , mydatabase);
+        generalBTFuncs.run();
 
-
-        //if(device1==null)
-        //{
-          //  Log.d("Neighbors","Device Nejav is null");
-           // System.exit(1);
-        //}
-        //ConnectThread newConnectThread1=new ConnectThread(device1,this);
-        //Log.d("Neighbors","value of socket is:"+newConnectThread1.mmSocket);
-        //newConnectThread1.start();
+        
 
         ///Db table creation
         DbTableCreation dbTableCreation=new DbTableCreation();
@@ -149,12 +113,42 @@ public class avBar extends AppCompatActivity
         setSupportActionBar(toolbar);
 
         verifyStoragePermissions(this);
+
+        Cursor cursorForRole = mydatabase.rawQuery("SELECT role from ROLE_TBL where MACAd='SELF'",null);
+        int flag=0;
+        ///If SI is not there in local device, insert it into TSR_TBL
+        int role=0;
+        while (cursorForRole.moveToNext()) {
+            role = cursorForRole.getInt(0);
+        }
+        Log.d("avBar","The role is:"+role);
+        if(role!=0)
+        {
+            RadioGroup rg=(RadioGroup)findViewById(R.id.radioGroup);
+            rg.setVisibility(View.INVISIBLE);
+            TextView tv = (TextView) findViewById(R.id.roleTextView);
+            if(role==1)
+            {
+                tv.setText("Hello Sergeant!", TextView.BufferType.EDITABLE);
+                tv.setVisibility(View.VISIBLE);
+            }
+            else if(role==2)
+            {
+                tv.setText("Hello Soldier!", TextView.BufferType.EDITABLE);
+                tv.setVisibility(View.VISIBLE);
+            }
+        }
+        else
+        {
+            RadioGroup rg=(RadioGroup)findViewById(R.id.radioGroup);
+            rg.setVisibility(View.VISIBLE);
+        }
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawer.setDrawerListener(toggle);
         toggle.syncState();
-        new DbFunctions().showConnectedDevices(openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null));
+        //new DbFunctions().showConnectedDevices(openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null));
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -205,22 +199,36 @@ public class avBar extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_camera) {
+            Intent intent = new Intent(this, CameraActivity.class);
+            startActivity(intent);
             // Handle the camera action
         } else if (id == R.id.nav_gallery) {
             Intent intent = new Intent(this, GalleryTags.class);
             startActivity(intent);
         } else if (id == R.id.nav_neighbors) {
-            Intent intent = new Intent(this, Neighbors.class);
+            Intent intent = new Intent(this, ConnectedDevices.class);
             startActivity(intent);
 
         } else if (id == R.id.nav_manage) {
-
+            Intent intent = new Intent(this, AddKeywords.class);
+            startActivity(intent);
         } else if (id == R.id.nav_share) {
             Intent intent = new Intent(this, ShowReceivedImages.class);
             startActivity(intent);
-
         }
-
+        else if (id == R.id.TSRsAct) {
+            Intent intent = new Intent(this, TSRsActivity.class);
+            startActivity(intent);
+        }
+        else if (id == R.id.OwnMessagesAct) {
+            Intent intent = new Intent(this, OwnMessagesActivity.class);
+            startActivity(intent);
+        }
+        else if(id==R.id.IncentiveAct)
+        {
+            Intent intent = new Intent(this, IncentiveActivity.class);
+            startActivity(intent);
+        }
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
@@ -289,5 +297,68 @@ public class avBar extends AppCompatActivity
         super.onDestroy();
         new DbFunctions().deleteConnectedDevices(openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null));
     }
+
+    public void onRadioButtonClicked(View view) {
+        // Is the button now checked?
+        final SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
+
+        boolean checked = ((RadioButton) view).isChecked();
+
+        // Check which radio button was clicked
+        switch(view.getId()) {
+            case R.id.radio_sergeant:
+                if (checked) {
+                    TextView tv = (TextView) findViewById(R.id.roleTextView);
+                    mydatabase.execSQL("UPDATE ROLE_TBL set role=1 WHERE MACAd='SELF'");
+                    RadioGroup rg=(RadioGroup)findViewById(R.id.radioGroup);
+                    rg.setVisibility(View.INVISIBLE);
+                    tv.setText("Hello Sergeant!", TextView.BufferType.EDITABLE);
+                    tv.setVisibility(View.VISIBLE);
+                }
+                    break;
+            case R.id.radio_soldier:
+                if (checked) {
+                    mydatabase.execSQL("UPDATE ROLE_TBL set role=2 WHERE MACAd='SELF'");
+                    RadioGroup rg=(RadioGroup)findViewById(R.id.radioGroup);
+                    rg.setVisibility(View.INVISIBLE);
+                    TextView tv = (TextView) findViewById(R.id.roleTextView);
+                    tv.setText("Hello Soldier!", TextView.BufferType.EDITABLE);
+                    tv.setVisibility(View.VISIBLE);
+                }
+                    break;
+        }
+    }
+
+    public static String DB_FILEPATH = "/data/data/{package_name}/databases/database.db";
+
+    /**
+     * Copies the database file at the specified location over the current
+     * internal application database.
+     * */
+    void dumpDB() {
+        try {
+            File sd = Environment.getExternalStorageDirectory();
+            File data = Environment.getDataDirectory();
+
+            if (sd.canWrite()) {
+                String currentDBPath = "/data/data/" + getPackageName() + "/databases/DTNShare.db";
+                String backupDBPath = "/storage/emulated/0/backupDb.db";
+                File currentDB = new File(currentDBPath);
+                File backupDB = new File(sd, backupDBPath);
+
+                if (currentDB.exists()) {
+                    FileChannel src = new FileInputStream(currentDB).getChannel();
+                    FileChannel dst = new FileOutputStream(backupDB).getChannel();
+                    dst.transferFrom(src, 0, src.size());
+                    src.close();
+                    dst.close();
+                }
+            }
+        } catch (Exception e) {
+            Log.d("avBar","Exception occured in dumpDB");
+        }
+    }
+
+
 }
 

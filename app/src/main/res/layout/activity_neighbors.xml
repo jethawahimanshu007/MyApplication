@@ -9,4 +9,18 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.example.himanshu.myapplication.Neighbors">
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="You have arrived at your destination, you can look for nearby places now"
+        android:id="@+id/busStop122"
+        android:textSize="25dp"
+        android:textColor="#FF4081"
+        android:layout_centerHorizontal="true"></TextView>
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/imageView2" />
+
 </RelativeLayout>

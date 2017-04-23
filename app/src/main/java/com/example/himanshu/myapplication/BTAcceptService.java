@@ -2,13 +2,19 @@ package com.example.himanshu.myapplication;
 
 import android.app.IntentService;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.Context;
+import android.content.IntentFilter;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
+import android.widget.Toast;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 /**
@@ -34,6 +40,7 @@ public class BTAcceptService extends IntentService {
         //Log.d("BtAcceptService","Context value in BTAcceptService:"+getApplicationContext());
        // mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
     }
+
 
 
     /**
@@ -73,12 +80,17 @@ public class BTAcceptService extends IntentService {
             Log.d("BTAcceptService","BTService called");
             mydatabase=openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
             Log.d("BTAcceptService","If mydatabase is null:"+mydatabase);
+
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+
             AcceptThread at=new AcceptThread(getBaseContext(),openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null));
             at.run();
         }
         catch(Exception e)
         {
                 Log.d("AcceptThread","Some exception occured!!");
+
         }
         if (intent != null) {
             final String action = intent.getAction();
@@ -92,6 +104,7 @@ public class BTAcceptService extends IntentService {
                 handleActionBaz(param1, param2);
             }
         }
+
     }
 
     /**

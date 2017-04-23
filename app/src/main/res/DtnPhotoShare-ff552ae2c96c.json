@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "dtnphotoshare-1475633304959",
+  "private_key_id": "ff552ae2c96cdbdc18e369a64a71bd7bc787cb72",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDKjGFH5qnv1pk8\nyShwqx0oCMGXBBVJ5GOQJidmj4CLDVRU1oYJ25RXkA007DDkfB6HXtMKsyYQkkIm\nba2akUFDc38msWbLerGMsYnP1Xq6JSdNilZbaNZCoJQ6HQRwz56JQSg/AxKPxKoB\nAkXk1P4ii/IU2dVKADjBO6qJ6KcD/q2j0c0R+KY5KcGmSPKKUZqKGsIYJLFw954/\nQY6Zi/9HEnQnxpc/tzdVtEyiHao/CXAygkTiTQ+tkYYd8desV7ewuJ21/SNLAFUs\naY96HeuQMmqpSqh2aYZGN4ABFlX/KssDF70+21IcgtbCuXlyH5P5jKevA5V1zZf8\nJZBM+IKjAgMBAAECggEAC7zy7k3Jz2JqYwFtXIouGGHZhjzwVuXrdzEe22y5kFVn\na7s67VtST3jDqyt88eDXjBTMujQDorY3Ky7z/p8oXxZUahOh12z22SZ4zBidEiiR\nDIdV1dpPgHD55hxEY51EnMOv52bwLnDBQWm2Tzqgt7PQhbDSEYXNxDUG/xMCitKf\nJZR6yfoUBeAlc+o5n2U79SXxpFZEmCMLdB864gzyyueiKfB60QDEd7HXDpO8hj8q\niS2fSNNmU/5R2PT4h4U1XIkyl6pjIvHFY1nJo9Blo/fmvTyNjIcA/qY/jhZIokfI\nQgJMMGRFBg10g75UYU7x2V8CHa60P5i0CshDVMthEQKBgQDuifd1zU+Qrzq8YZsz\ngkl/G/6tYK3sxzkjxLlr9iLCwk3p/clo3MQwQUwxOdeQL1zm0RaNRtY6Fu6vwLku\nVSvGn9Uy1FfCGYsn09KLtEfNrXQY7Nl+cVvlviknFGdtYTz4zRFHzjVRxDb76puf\niefcJOThL4I6Ybaz1qanEiJ/RwKBgQDZX/pmeIDG0G0+9j4Fj7mxT4PUZPe3bLNR\nJhiU3nffpVzM7DQhv9wlYVx2gl+BmEFPy155kMSs6tjn8BtO2fPv3rPBGaj3JP6G\nG9jedTgGIonU08+/C1oYZiKwhuoKameEK+CQfWyc1cUkxdxThzOYiLNnRvcutNnY\n/fn7oJFnxQKBgFdiI0z8UVFnX9TyzLAp4lK2Jq3M5OoAcWYxAtwR5toB5Bj753SK\nqzQiN48w6U7git/jaKeIc6IEFJw9tZjLiqXQl4FvWFa6lMeaSV70Q/mMuSMIYQR4\n8nlPGDRAvULMhFGAjfwIBnBVuO7AGxJuqoly2oXDqalJcmyfDZ3WftyxAoGAIxyn\nu8mXM4YTP2pTFl7i5cssRjCQ+uXqCR+YNOPChTOWy9sTiKgPDVKuts3UU4CefB8j\ngYtq2WuN4dkc8B2wk3xrmLNmYZVuL4dr/nL8u7D0hpY4JmnVAb/tton0X/5T/juA\nKJa55pN5Jrl3H17lbKwYHoSOBNNdpPlRWd3T3ukCgYEAqrfM3AykZdEPqMje8H2d\nEqd0I2qLrLpoTPjn+lQt6+zSzukYCwIHT7wHjny/SS6fA2SJLJa196UEM/z7N+8i\nlO1GQhmDGY22V1cq20Ck01dERoNQD4TpkQkEDbWllSAKj5Pgw8S3MbVoBNyPDrBW\npAzsSlgkGWuzCox/7/ousrg=\n-----END PRIVATE KEY-----\n",
+  "client_email": "dtnphotoshare@dtnphotoshare-1475633304959.iam.gserviceaccount.com",
+  "client_id": "107477989195865569019",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://accounts.google.com/o/oauth2/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/dtnphotoshare%40dtnphotoshare-1475633304959.iam.gserviceaccount.com"
+}

@@ -17,7 +17,8 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Environment;
 import android.os.Handler;
-import android.support.v4.app.ActivityCompat;
+
+import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
 
@@ -30,14 +31,19 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.UUID;
 import android.content.Context;
 import android.widget.Toast;
@@ -54,45 +60,65 @@ class ConnectThread extends Thread {
 
     private static final UUID MY_UUID =
             UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");
+    int flagSent=0;
     Uri uri;
-    public final BluetoothSocket mmSocket;
-    public final BluetoothDevice mmDevice;
+    public final BluetoothSocket mmSocket[];
+    public final BluetoothDevice mmDevice[];
     public SQLiteDatabase mydatabase;
   //HImanshu--  private final Handler mHandlerInput;
     BluetoothAdapter mBluetoothAdapter=BluetoothAdapter.getDefaultAdapter();
     public Context context;
-    public ConnectThread(BluetoothDevice device) {
+
+
+     BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            SQLiteDatabase mydatabase=context.openOrCreateDatabase(Constants.DATABASE_NAME, context.MODE_PRIVATE, null);
+            String action = intent.getAction();
+            DbFunctions dbFunctions=new DbFunctions();
+            if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
+                //Log.d("ReceiverBroadcast","Something connected");
+
+                Log.d("ConnectThread","Inside connectThreads receiver broadcast");
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                mydatabase.execSQL("INSERT OR IGNORE INTO DEVICES_CURRENTLY_CONNECTED(BTDeviceMacAddr) VALUES( '"+device.getAddress()+"')");
+
+                Log.d("ReceiverBroadcast","The connected device is:"+device.getName());
+            }
+            if(BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action))
+            {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                Log.d("ReceiverBroadcast","The disconnected device is:"+device.getName());
+                mydatabase.execSQL("DELETE FROM DEVICES_CURRENTLY_CONNECTED where BTDeviceMacAddr='"+device.getAddress()+"'");
+                mydatabase.execSQL("UPDATE UUID_TBL set isUsed=0 and MacAddress='NO' where MacAddress='"+device.getAddress()+"'" );
+                dbFunctions.devicesDisconnectedTime(mydatabase,device.getAddress(),device.getName());
+
+            }
+        }
+    };
+    public ConnectThread(String deviceStrings[],Context context) {
         // Use a temporary object that is later assigned to mmSocket,
         // because mmSocket is final
+
+        int lengthOfArray=deviceStrings.length;
         BluetoothSocket tmp = null;
-        mmDevice = device;
-
-
-        // Get a BluetoothSocket to connect with the given BluetoothDevice
-        try {
-            // MY_UUID is the app's UUID string, also used by the server code
-
-            tmp = device.createInsecureRfcommSocketToServiceRecord(MY_UUID);
-        } catch (Exception e) { Log.d("ConnectThread","MaybeException"); }
-        mmSocket = tmp;
-    }
-
-    public ConnectThread(BluetoothDevice device,Context context) {
-        // Use a temporary object that is later assigned to mmSocket,
-        // because mmSocket is final
-        BluetoothSocket tmp = null;
-        mmDevice = device;
+        mmDevice = new BluetoothDevice[lengthOfArray];
+        mmSocket=new BluetoothSocket[lengthOfArray];
+        for(int i=0;i<mmDevice.length;i++)
+        {
+            BluetoothDevice device= BluetoothAdapter.getDefaultAdapter().getRemoteDevice(deviceStrings[i]);
+            mmDevice[i]=device;
+        }
         this.context=context;
-
-
         mydatabase = context.openOrCreateDatabase(Constants.DATABASE_NAME, context.MODE_PRIVATE, null);
+        for(int i=0;i<mmDevice.length;i++)
+        {
+            try {
 
-
-        try {
-
-            tmp = device.createInsecureRfcommSocketToServiceRecord(MY_UUID);
-        } catch (Exception e) { Log.d("ConnectThread","MaybeException"); }
-        mmSocket = tmp;
+                tmp = mmDevice[i].createInsecureRfcommSocketToServiceRecord(MY_UUID);
+            } catch (Exception e) { Log.d("ConnectThread","MaybeException"); }
+            mmSocket[i] = tmp;
+        }
     }
 
 
@@ -101,150 +127,381 @@ class ConnectThread extends Thread {
         Log.d("ConnectThread","Entered the run function of ConnectThread");
 
         mBluetoothAdapter.cancelDiscovery();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("ACTION_ACL_CONNECTED");
+        context.registerReceiver(receiver,filter);
 
-        try {
+        Log.d("ConnectThread","Stopped discovery inside connectThread, length of mmSocket is"+mmSocket.length);
 
-            // Register the BroadcastReceiver
-            //ReceiverBroadcast1 rb1=new ReceiverBroadcast1();
-           //IntentFilter filter = new IntentFilter();
-            //filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
-
-           //context.registerReceiver(rb1, filter); // Don't forget to unregister during onDestroy
-
-            Log.d("Client-MainAc","Client trying to connect");
-           // new DbFunctions().showConnectedDevices(mydatabase);
-            //if(new DbFunctions().ifDeviceConnected(mydatabase,mmDevice.getAddress())==0) {
-                Log.d("CT",mmDevice.getName()+" is not already connected, connecting to it now");
-            //if(mmDevice.getName().equals("HimanshuTablet"))
-                mmSocket.connect();
-            Log.d("CT","The device is successfully connected");
-            try {
-                ConnectedThreadWithRequestCodes newConnectedThreadToRead=new ConnectedThreadWithRequestCodes(mmSocket,context);
-                newConnectedThreadToRead.start();
-            }
-            catch(Exception e)
+            int flagToConnect=0;
+            Log.d("ConnectThread","mmSocket.length:"+mmSocket.length);
+            for(int i=0;i<mmSocket.length;i++)
             {
-                Log.d("ConnectThread","Exception is thrown!! LOL::"+e);
-            }
+                flagToConnect=0;
+                //Log.d("ConnectThread","The device address and name is:"+mmDevice[i].getAddress()+"::"+mmDevice[i].getName());
+                //if((mmDevice[i].getAddress().equals("24:DA:9B:43:01:0C")||mmDevice[i].getAddress().equals("BC:F5:AC:5D:5D:50"))||mmDevice[i].getAddress().equals("D0:87:E2:4E:7A:2B")) {
+                                                                                                            //Dell--Tablet--Phone
+                    if (new DbFunctions().ifDeviceConnected(mydatabase, mmDevice[i].getAddress()) == 0 && ((mmDevice[i].getAddress().trim().equals("18:3B:D2:EA:15:62")) || (mmDevice[i].getAddress().trim().equals("D0:87:E2:4E:7A:2B")) || (mmDevice[i].getAddress().trim().equals("24:DA:9B:43:01:0C")))) {
+                      /*For tablet*/ /* if (new DbFunctions().ifDeviceConnected(mydatabase, mmDevice[i].getAddress()) == 0 && ((mmDevice[i].getAddress().trim().equals("18:3B:D2:EA:15:62")))) {/
+                      /*For Dell*/  /*if (new DbFunctions().ifDeviceConnected(mydatabase, mmDevice[i].getAddress()) == 0 &&  (mmDevice[i].getAddress().trim().equals("24:DA:9B:43:01:0C"))) {*/
+                        String macAddress = android.provider.Settings.Secure.getString(context.getContentResolver(), "bluetooth_address");
+                        if (macAddress.equals("18:3B:D2:EA:15:62") && (mmDevice[i].getAddress().trim().equals("24:DA:9B:43:01:0C")))
+                            flagToConnect = 1;
+                        if (macAddress.equals("D0:87:E2:4E:7A:2B") && (mmDevice[i].getAddress().trim().equals("18:3B:D2:EA:15:62")))
+                            flagToConnect = 1;
+                            if(flagToConnect==1){
+                        Log.d("ConnectThread", "Trying to connect to device:" + mmDevice[i].getName());
+                        try {
+                            mmSocket[i].connect();
+                            mydatabase.execSQL("INSERT OR IGNORE INTO DEVICES_CURRENTLY_CONNECTED(BTDeviceMacAddr) VALUES( '" + mmDevice[i].getAddress() + "')");
+                            mydatabase.execSQL("INSERT OR IGNORE INTO TSR_SHARE_DONE_TBL VALUES('" + mmDevice[i].getAddress() + "',0)");
+                            if(Constants.deviceToSocket.get(mmDevice[i].getAddress())==null)
+                            Constants.deviceToSocket.put(mmDevice[i].getAddress(), mmSocket[i]);
+                            new DbFunctions().setConnectedLogTBL(mydatabase, mmDevice[i].getAddress());
 
-            Cursor cursorForTagsForLocalDevice=null;
-            try {
-                cursorForTagsForLocalDevice = mydatabase.rawQuery("SELECT GROUP_CONCAT(Tags) from IMAGE_TAG_RELATION", null);
-            }
-            catch(Exception e)
-            {
-                Log.d("ConnectThread","Exception occurred, hahahaha!");
-            }
-            try {
-                String tagsForLocalDevice=new String();
+                            try {
+                                ConnectedThreadWithRequestCodes newConnectedThreadToRead = new ConnectedThreadWithRequestCodes(mmSocket[i], context);
+                                newConnectedThreadToRead.start();
+                            } catch (Exception e) {
+                                Log.d("ConnectThread", "Exception is thrown!! LOL::" + e);
+                            }
+                            if (i == mmSocket.length - 1) {
+                                Log.d("ConnectThread", "All the devices have been tried for connection establishment");
+                                postConnection();
+                                // postConnMTransfer();
+                            }
 
-                try {
-
-                    if(cursorForTagsForLocalDevice!=null)
-                        while (cursorForTagsForLocalDevice.moveToNext()) {
-                            tagsForLocalDevice = cursorForTagsForLocalDevice.getString(0);
+                        } catch (Exception e) {
+                            Log.d("ConnectThread", "Error in connecting mostly:" + e);
+                            if (i == mmSocket.length - 1) {
+                                Log.d("ConnectThread", "All the devices have been tried for connection establishment");
+                                postConnection();
+                                // postConnMTransfer();
+                            }
                         }
-                }
-                catch(Exception e)
-                {
-                    Log.d("ConnectThread","Exception occured in sqlite query!!! ::"+e);
-                }
 
-                byte[] byteArrayForTagsForLocalDevice=null;
-                int sizeForTagsForLocalDevice=0;
-                String preambleString;
-                if(tagsForLocalDevice!=null) {
-                    byteArrayForTagsForLocalDevice = tagsForLocalDevice.getBytes();
-                    sizeForTagsForLocalDevice = byteArrayForTagsForLocalDevice.length;
-                    byteArrayForTagsForLocalDevice=tagsForLocalDevice.getBytes();
-                }
-
-                preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TAGS + "::MessageSize:" + sizeForTagsForLocalDevice + "::";
-
-
-                byte preamble[]=new byte[Constants.PREAMBLE_SIZE];
-                Log.d("CT","Preamble string is:"+preambleString);
-                byte preambleSomething[]=preambleString.getBytes();
-                Arrays.fill(preamble,(byte)0);
-                System.arraycopy(preambleSomething,0,preamble,0,preambleSomething.length);
-
-
-                ConnectedThreadWithRequestCodes newConnectedThread=new ConnectedThreadWithRequestCodes(mmSocket,context);
-                if(mmSocket==null) Log.d("CT","mmSocket is null");
-                if(newConnectedThread==null) Log.d("CT","newConnectedThread is null");
-                newConnectedThread.write(preamble);
-                if(byteArrayForTagsForLocalDevice!=null) {
-                    Log.d("ConnectThread","Going to send byteArrayForLocalDevice");
-                    newConnectedThread.write(byteArrayForTagsForLocalDevice);
-
-                }
-                Log.d("ConnectThread","Tags for this device found from db are:"+tagsForLocalDevice);
-
-
-            }
-            catch(Exception e)
-            {
-                Log.d("Neighbors","Exception occured:"+e);
+                    }
+                    }
+                else
+                    {
+                        if(i==mmSocket.length-1)
+                        {
+                            Log.d("ConnectThread","All the devices have been tried for connection establishment");
+                            postConnection();
+                            //postConnMTransfer();
+                        }
+                    }
+                //}
             }
 
 
-            String imagePath="/storage/emulated/0/Download/Sonny-Bryant-Junior.jpg";
-
-
-            //}
-
-
-        } catch (Exception connectException) {
-                Log.d("ConnectThread","Exception occured for device  "+mmDevice.getName()+" :"+connectException);
-            try {
-                mmSocket.close();
-            } catch (Exception closeException) { }
-            return;
-        }
 
     }
 
+    public void postConnection()
+    {
 
+        mydatabase.execSQL("UPDATE CONNECT_ALL_ATTEMPT_TBL SET doneOrNot=0");
+        Iterator it = Constants.deviceToSocket.entrySet().iterator();
+        //Log.d("ConnectThread","postConnect-notMT::Number of items in hashmap are:"+Constants.deviceToSocket.size());
+        while (it.hasNext()) {
+            Map.Entry pair = (Map.Entry)it.next();
+            System.out.println(pair.getKey() + " = " + pair.getValue());
+
+            String Role=new String();
+            //Share TSRs with newly connected device
+            Log.d("ConnectThread","Calculating TSRs before sending");
+            String TSRsToShare = new DbFunctions().calculateTSRsPre(mydatabase);
+            Cursor cursorForRole=mydatabase.rawQuery("SELECT Role from ROLE_TBL where MACAd='SELF'",null);
+            while(cursorForRole.moveToNext())
+            {
+                Role=cursorForRole.getString(0);
+            }
+          //  Log.d("ConnectThread", "new TSRs are:" + TSRsToShare);
+            byte[] byteArrayTSRsToShare = TSRsToShare.getBytes();
+            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TSRS + "::MessageSize:" + byteArrayTSRsToShare.length + "::Role:"+Role+"::";
+            //Log.d("ConnectThread", "Preamble String is:" + preambleString);
+            ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) pair.getValue(), context);
+            Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
+            newConnectedThread.writePreamble(preambleString);
+            newConnectedThread.write(byteArrayTSRsToShare);
+            //it.remove();     // avoids a ConcurrentModificationException
+            //Log.d("ConnectThread","postConnect-notMT::Number of items in hashmap after it.remove are:"+Constants.deviceToSocket.size());
+        }
+        mydatabase.execSQL("UPDATE CONNECT_ALL_ATTEMPT_TBL SET doneOrNot=1");
+
+    }
+    //Function for message transfer
+    public void postConnMTransfer()
+    {
+        Log.d("ConnectThread","postConnMTransfer fc called");
+        int Role=1;
+        Cursor cursorForRole=mydatabase.rawQuery("SELECT Role from ROLE_TBL where MACAd='SELF'",null);
+        while(cursorForRole.moveToNext())
+        {
+            Role=cursorForRole.getInt(0);
+        }
+        //Map of messages to be sent
+        class MesParams  implements Comparable<MesParams>{
+            String UUID;
+            long size,quality,priority;
+            double sumWeightsRemote;
+            double incentive;
+            String remoteMAC;
+            int flagForDest;//0 for relay and 1 for dest
+
+            public int compareTo(MesParams o) {
+            return new Double(this.incentive).compareTo(new Double(o.incentive));
+            }
+        }
+        ArrayList<MesParams> listMessages=new ArrayList<MesParams>();
+
+        long sizeMax=-90,qualityMax=-90;
+        double remoteSumMax=-0.9;
+        Map<String,ArrayList<MesParams>> MACtoMessageRelay=new HashMap<String, ArrayList<MesParams>>();
+        Map<String,ArrayList<MesParams>> MACtoMessageDest=new HashMap<String,ArrayList<MesParams>>();
+        Iterator it = Constants.deviceToSocket.entrySet().iterator();
+        Log.d("ConnectThread","postConn::Number of mappings in hashmaps are:"+Constants.deviceToSocket.size());
+        //Iterate through all the connected devices
+        while (it.hasNext()) {
+            Map.Entry pair = (Map.Entry) it.next();
+            //Take one device at a time
+            String remoteMAC=((String)pair.getKey());
+            //To check the condition that a message is not being checked again
+            ArrayList<String> listOfUUIDsChecked=new ArrayList<String>();
+            //To check the condition that a message to be transferred is not sent twice
+            ArrayList<String> listOfImages=new ArrayList<String>();
+            //To store device to difference in sum mappings
+            HashMap<String, Double> hm = new HashMap<String, Double>();
+            //Find messages for a particular device with local sum less than remote and haven't been previously exchanged with the device
+            Cursor cursorForRemoteTSR=mydatabase.rawQuery("SELECT * from TSR_REMOTE_TBL where deviceMacAddr='"+remoteMAC+"'",null);
+
+            Cursor cursorForMatchingImage;
+            ArrayList<String> listUUIDSentOrReceived = new ArrayList<String>();
+
+            while(cursorForRemoteTSR.moveToNext()) {
+
+                String belongs_to=cursorForRemoteTSR.getString(4);
+                //Find all the messages for the particular tag and device
+                Log.d("ConnectThread","postConnMT: TSR and belongs_to in check is:"+cursorForRemoteTSR.getString(1)+" and "+belongs_to);
+                cursorForMatchingImage = mydatabase.rawQuery("SELECT * from MESSAGE_TBL  where tagsForCurrentImage like '%" + cursorForRemoteTSR.getString(1) + "%'", null);
+
+                double localSum=0.0,remoteSum=0.0;
+
+                //Iterate through all the messages for the device and tag combo
+                while (cursorForMatchingImage.moveToNext()) {
+
+                    String tagsForCurrentImage=cursorForMatchingImage.getString(4);
+                    String UUID=cursorForMatchingImage.getString(10);
+                    Log.d("ConnectThread","postConnMT::Message considered for transfer:"+UUID);
+                    int sizeIndex=cursorForMatchingImage.getColumnIndex("size"); int qualityIndex=cursorForMatchingImage.getColumnIndex("quality"); int priorityIndex=cursorForMatchingImage.getColumnIndex("priority");
+                    long size=cursorForMatchingImage.getLong(sizeIndex); long quality=cursorForMatchingImage.getLong(qualityIndex);int priority=cursorForMatchingImage.getInt(priorityIndex);
+                    MesParams mesParams=new MesParams();
+                    mesParams.remoteMAC=remoteMAC;
+                    mesParams.UUID=UUID; mesParams.quality=quality;mesParams.priority=priority;
+                    if(sizeMax>size)
+                        sizeMax=size;
+                    if(quality>qualityMax)
+                        qualityMax=quality;
+
+                    if(belongs_to.equals("SELF"))
+                    {
+
+                        if(MACtoMessageRelay!=null && MACtoMessageRelay.get(remoteMAC)!=null && MACtoMessageRelay.get(remoteMAC).contains(UUID))
+                        {
+                            //move message from relay map to destination map
+                            ArrayList<MesParams> relayList=MACtoMessageRelay.get(remoteMAC);
+                            relayList.remove(mesParams);
+                            MACtoMessageRelay.put(remoteMAC,relayList);
+
+                            ArrayList<MesParams> destList=MACtoMessageRelay.get(remoteMAC);
+                            mesParams.flagForDest=1;
+                            destList.add(mesParams);
+                            MACtoMessageDest.put(remoteMAC,destList);
+                        }
+
+                    }
+                    if(listOfUUIDsChecked.contains(UUID))
+                        continue;
+                    else{
+                        listOfUUIDsChecked.add(UUID);
+                    }
+                    String tagsForCurrentImageArray[]=tagsForCurrentImage.split(",");
+                    //Find local and sum for all the messages
+                    for(int i=0;i<tagsForCurrentImageArray.length;i++)
+                    {
+                        if(tagsForCurrentImageArray[i].length()>0)
+                        {
+                            Cursor cursorForTagsWeight=mydatabase.rawQuery("SELECT weight from TSR_TBL where SI='"+tagsForCurrentImageArray[i]+"'",null);
+                            if(cursorForTagsWeight.moveToFirst()) {
+                                double tempWeight = cursorForTagsWeight.getDouble(0);
+                                localSum+=tempWeight;
+                            }
+
+                            /////comment-Doug, get a node identifier for TSR_REMOTE
+                            Cursor cursorForTagsWeightRemote=mydatabase.rawQuery("SELECT weight from TSR_REMOTE_TBL where SI='"+tagsForCurrentImageArray[i]+"' and deviceMacAddr='"+remoteMAC+"'",null);
+                            if(cursorForTagsWeightRemote.moveToFirst()) {
+                                double tempWeight = cursorForTagsWeightRemote.getDouble(0);
+                                remoteSum+=tempWeight;
+                            }
+
+                        }
+                    }
+                    mesParams.sumWeightsRemote=remoteSum;
+                    if(remoteSum>remoteSumMax)
+                    {
+                        remoteSumMax=remoteSum;
+                    }
+                    Log.d("DbFunctions","localSum and remoteSum for the current message is:"+localSum+"--"+remoteSum);
+                    double differenceInSums=remoteSum-localSum;
+                    /////come here
+                    hm.put(UUID,differenceInSums);
+                    //See if this message has been exchanged before between the two devices
+                    Cursor ifSentOrReceived = mydatabase.rawQuery("SELECT * from SENT_IMAGE_LOG where UUID='" + cursorForMatchingImage.getString(10) + "' and (sentTo='" + remoteMAC + "' OR receivedFrom='" + remoteMAC + "')", null);
+                    if (ifSentOrReceived.getCount()>0) {
+                        //Condition that this message has been exchanged before
+                        if (!listUUIDSentOrReceived.contains(cursorForMatchingImage.getString(10))) {
+                            listUUIDSentOrReceived.add(cursorForMatchingImage.getString(10));
+                            Log.d("DbFunctions", "Image already sent or received:" + ifSentOrReceived.getString(0) + "---" + ifSentOrReceived.getString(1) + "---" + ifSentOrReceived.getString(2));
+                        }
+                    } else {
+                        //condition that this message has not been exchanged before
+                        if(belongs_to.equals("SELF")) {
+
+                            Log.d("ConnectThread",mesParams.UUID+" is added to dest list");
+                            ArrayList destList=new ArrayList<MesParams>();
+                            if(MACtoMessageDest.get(remoteMAC)!=null) {
+                                destList = MACtoMessageDest.get(remoteMAC);
+                            }
+                                mesParams.flagForDest = 1;
+                                destList.add(mesParams);
+                                MACtoMessageDest.put(remoteMAC, destList);
+                                listMessages.add(mesParams);
+                                listOfImages.add(UUID);
+
+                        }
+                        if(hm.get(UUID)>=0)
+                        {
+                            if(listOfImages.contains(UUID))
+                            {
+                                //This image is included in the list of messages to be sent
+
+                            }
+                            else
+                            {
+                                //This image is not included in the list of messages to be sent,so add it
+                                if(!(belongs_to.equals("SELF")))
+                                {
+                                    ArrayList<MesParams> relayList=MACtoMessageRelay.get(remoteMAC);
+                                    mesParams.flagForDest=1;
+                                    relayList.add(mesParams);
+                                    MACtoMessageRelay.put(remoteMAC, relayList);
+                                    listMessages.add(mesParams);
+                                }
+                                listOfImages.add(UUID);
+                            }
+                        }
+                    }
+                }
+            }
+        } ///List of all the messages to be transferred formed-- two maps from mac to message for dest and relay
+
+        //Calculate incentives now
+
+
+        //Variables to store size of each message
+        //Iterate through dest hashmap to find max size
+        it = MACtoMessageDest.entrySet().iterator();
+
+        HashMap<String,MesParams> UUIDtoParams=new HashMap<String,MesParams>();
+        ArrayList<MesParams> allMessages=new ArrayList<MesParams>();
+
+        //Two arrays for descending order arrangement
+        MesParams[] destMs,relayMs; int destMsC=0;int relayMsC=0;
+
+        //Calculate incentive for all messages
+
+        for(MesParams mesParams:allMessages)
+        {
+            mesParams.incentive=mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
+            if(mesParams.flagForDest==1)
+                destMsC++;
+            else
+                relayMsC++;
+        }
+        destMs=new MesParams[destMsC];
+        relayMs=new MesParams[relayMsC];
+
+        //Arrange in descending order of incentive
+        Arrays.sort(destMs);
+        Arrays.sort(relayMs);
+
+       /* while(it.hasNext())
+        {
+            Map.Entry pair = (Map.Entry) it.next();
+            MesParams mesParams=(MesParams) pair.getValue();
+            mesParams.incentive=mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
+            if(!allMessages.contains(mesParams))
+            {
+                allMessages.add(mesParams);
+            }
+        }
+
+        //Iterate through relay hashmap to find max size
+        it = MACtoMessageRelay.entrySet().iterator();
+        while(it.hasNext())
+        {
+            Map.Entry pair = (Map.Entry) it.next();
+            MesParams mesParams=(MesParams) pair.getValue();
+            mesParams.incentive=mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
+        }*/
+        //Sending to destinations--temporary
+        /*
+        Log.d("ConnectThread","listMessages.size():"+listMessages.size());
+        for(MesParams tempMesParams:listMessages)
+        {
+
+            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ+"::IncentiveRequired:"+tempMesParams.incentive+"::UUID:"+tempMesParams.UUID+"::";
+            Log.d("ConnectThread", "Preamble String is:" + preambleString);
+            ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(tempMesParams.remoteMAC), context);
+            //Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
+            Log.d("ConnectThread","asking for incentive from :"+tempMesParams.remoteMAC);
+            newConnectedThread.writePreamble(preambleString);
+        }
+        */
+
+        Log.d("ConnectThread","Value of destMsc and relayMsc before transferring is:"+destMsC+"::"+relayMsC);
+        for(int i=destMsC-1;i>=0;i++)
+        {
+            String Preamble;
+            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ+"::IncentiveRequired:"+destMs[i].incentive+"::UUID:"+destMs[i].UUID+"::";
+            Log.d("ConnectThread", "Preamble String is:" + preambleString);
+            ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(destMs), context);
+            //Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
+            Log.d("ConnectThread","asking for incentive from :"+destMs[i]);
+            newConnectedThread.writePreamble(preambleString);
+
+        }
+        //Sending to relays
+        for(int i=relayMsC-1;i>0;i++)
+        {
+            ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(destMs), context);
+            newConnectedThread.sendMessage(relayMs[i].UUID,1,relayMs[i].incentive);
+        }
+
+
+
+
+    }
     public void cancel() {
         try {
-            mmSocket.close();
+            //mmSocket.close();
         } catch (Exception e) { }
     }
 
-    public  class ReceiverBroadcast1 extends BroadcastReceiver{
-        public void onReceive(Context context, Intent intent) {
-
-            String action = intent.getAction();
-            if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
-                Log.d("Ct","Connected to device successfully");
-
-                String imagePath="/storage/emulated/0/Download/Sonny-Bryant-Junior.jpg";
-                try {
-                    java.io.RandomAccessFile raf = new java.io.RandomAccessFile(imagePath, "r");
-                    byte[] b = new byte[(int) raf.length()];
-                    Log.d("CTwRC", "Length of byte array from image is:" + b.length);
-                    raf.readFully(b);
-                   // Log.d("CT","maxReceivePacketSize and maxTransmitPacketSize:"+mmSocket.getMaxReceivePacketSize()+" and "+mmSocket.getMaxTransmitPacketSize());
-                    OutputStream outputStream=mmSocket.getOutputStream();
-                    outputStream.write(b);
-                }
-                catch(Exception e)
-                {
-                    Log.d("CT","Error sending Sonny-bryant-junior:"+e);
-                }
-
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                Log.d("ReceiverBroadcast1","hahahahahaha,The connected device is:"+device.getName());
-                Log.d("CT","Device connected is:"+mmSocket.getRemoteDevice().getAddress());
-                new DbFunctions().insertIntoDevicesConnected(mydatabase,mmSocket.getRemoteDevice().getAddress(),mmSocket.toString());
-                Log.d("ConnectThread","Mostly the connection is established to  "+mmDevice.getAddress()+":"+mmDevice.getName());
-                Log.d("ConnectThread"," And the Connected Socket is:"+mmSocket);
 
 
-            }
 
-        }
-    }
 
 }
 

@@ -26,24 +26,23 @@ import java.io.FileOutputStream;
 public class getTagsForImage extends Thread{
     public static String picturePath;
     public static Handler handler;
-    public getTagsForImage(String picturePath,Handler handler)
+    public Context context;
+    public getTagsForImage(String picturePath,Handler handler,Context context)
     {
         this.picturePath=picturePath;
         this.handler=handler;
+        this.context=context;
+        if(this.context==null)
+        {
+            Log.d("getTagsForIMage","Context passed to getTagsforImage is null");
+        }
+        else
+        {
+            Log.d("getTagsForIMage","Context passed to getTagsforImage is not null");
+        }
     }
     public static void getKeywords() {
-        try {
-            //LabelApp labelApp = new LabelApp(LabelApp.getVisionService());
-            //labelApp.labelImage(picturePath,5);
-        }
-        catch(Exception e)
-        {
 
-        }
-        //Path imagePath = Paths.get(args[0]);
-
-        //LabelApp app = new LabelApp(getVisionService());
-        //printLabels(System.out, imagePath, app.labelImage(imagePath, MAX_LABELS));
 
 
         try {
@@ -94,7 +93,26 @@ public class getTagsForImage extends Thread{
     }
     public void run()
     {
-        getKeywords();
+        //getKeywords();
+        try {
+            Log.d("getTagsForIimage","Before initializing LabelApp, is context null?:"+(context==null));
+            LabelApp app = new LabelApp(LabelApp.getVisionService(context));
+            app.setContext(context);
+            Log.d("getTagsForImage","value of picturePath in getTagsForImage:"+picturePath);
+
+            String finalOP=app.printLabels(System.out, picturePath, app.labelImage(picturePath, 20));
+            Message msgObj = handler.obtainMessage();
+            Bundle b = new Bundle();
+            b.putString("message", finalOP);
+            msgObj.setData(b);
+            handler.sendMessage(msgObj);
+        }
+        catch(Exception e)
+        {
+                Log.d("getTagsForImage","Exception occured in SonnyBryant's Google:"+e);
+
+            e.printStackTrace();
+        }
     }
     public static File saveBitmapToFile(File file){
         try {
