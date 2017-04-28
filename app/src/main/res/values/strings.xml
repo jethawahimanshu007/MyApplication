@@ -19,5 +19,6 @@
     <string name="show_bt_devices_in_range">Devices in range</string>
     <string name="title_activity_gallery">Gallery</string>
     <string name="title_activity_show_received_images">ShowReceivedImages</string>
-
+    <string name="newTags">Add new tags</string>
+    <string name="ST">Developed in Missouri S &amp; T</string>
 </resources>

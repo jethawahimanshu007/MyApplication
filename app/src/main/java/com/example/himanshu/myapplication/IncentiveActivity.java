@@ -1,5 +1,6 @@
 package com.example.himanshu.myapplication;
 
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Environment;
@@ -35,20 +36,29 @@ public class IncentiveActivity extends AppCompatActivity {
         tokensTV.setText("Total tokens left on this device are:"+/*ICDCS0*/incentiveLeft /*ICDCS*/);
         //ICDCS
         TextView Warning=(TextView)findViewById(R.id.warning);
-        Warning.setText("Zero tokens left, participate in relaying");
+        Warning.setText("Close to zero tokens left, participate in relaying!");
         Warning.setVisibility(View.INVISIBLE);
-        if(incentiveLeft==0.0)
+        if(incentiveLeft<2.0)
         {
             Warning.setVisibility(View.VISIBLE);
         }
         //ICDCS
 
         //Set onclick listener for dumpdb button
-        Button dumpDBButton=(Button)findViewById(R.id.dumpDB);
+        /*Button dumpDBButton=(Button)findViewById(R.id.dumpDB);
         dumpDBButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 dumpDB();
 
+            }
+        });*/
+
+        Button dumpDBButton=(Button)findViewById(R.id.dumpDB);
+        dumpDBButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                Intent intent = new Intent(IncentiveActivity.this, ListViewCheckBoxesActivity.class);
+                //intent.putExtra("title", item.getTitle());
+                startActivity(intent);
             }
         });
 
@@ -65,6 +75,8 @@ public class IncentiveActivity extends AppCompatActivity {
                 resetDB(mydatabase);
             }
         });
+
+
     }
     void dumpDB() {
         try {
@@ -117,6 +129,7 @@ public class IncentiveActivity extends AppCompatActivity {
                 final SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
                 mydatabase.execSQL("Delete from TSR_REMOTE_TBL");
                 mydatabase.execSQL("Delete from SENT_IMAGE_LOG");
+                mydatabase.execSQL("CREATE TABLE IF NOT EXISTS ADDED_TAGS_TBL(UUID VARCHAR, addedTags VARCHAR,PRIMARY KEY(UUID))");
                 Toast.makeText(getBaseContext(), backupDB.toString(),
 
 
@@ -139,5 +152,9 @@ public class IncentiveActivity extends AppCompatActivity {
         mydatabase.execSQL("DELETE FROM SENT_IMAGE_LOG");
         mydatabase.execSQL("DELETE FROM TSR_REMOTE_TBL");
         mydatabase.execSQL("DELETE FROM MESSAGE_TBL");
+        mydatabase.execSQL("DELETE FROM INCENT_FOR_MSG_TBL");
+        mydatabase.execSQL("DELETE FROM ADDED_TAGS_TBL");
+        /*mydatabase.execSQL("DELETE FROM TSR_TBL");
+        mydatabase.execSQL("DELETE FROM TSR_REMOTE_TBL");*/
     }
 }

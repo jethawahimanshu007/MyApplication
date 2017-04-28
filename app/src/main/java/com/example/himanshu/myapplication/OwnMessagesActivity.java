@@ -7,9 +7,15 @@ import android.graphics.BitmapFactory;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.LinearLayoutCompat;
+import android.util.DisplayMetrics;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.GridLayout;
 import android.widget.GridView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -23,7 +29,7 @@ public class OwnMessagesActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_own_messages);
         gridView = (GridView) findViewById(R.id.gridViewOwn);
-        gridAdapter = new GridViewAdapter(this, R.layout.grid_item_layout, getData());
+        gridAdapter = new GridViewAdapter(this, R.layout.grid_item_layout, getData(),R.id.imageGrid,R.id.textGrid);
         gridView.setAdapter(gridAdapter);
 
         gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {

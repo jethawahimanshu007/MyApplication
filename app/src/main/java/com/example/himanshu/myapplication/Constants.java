@@ -13,7 +13,7 @@ public interface Constants {
 
     // Trial for a hashmap for device to connectedthreads
     public static Map<String,BluetoothSocket> deviceToSocket = new HashMap<String,BluetoothSocket>();
-
+    public static String imagePath=new String();
     // Message types sent from the BluetoothChatService Handler
     public static final int MESSAGE_STATE_CHANGE = 1;
     public static final int MESSAGE_READ = 2;

@@ -29,9 +29,14 @@ public class DbTableCreation {
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS UUID_TBL(UUID VARCHAR, isUsed INTEGER,MacAddress VARCHAR,PRIMARY KEY(UUID))");
         mydatabase.execSQL("INSERT OR IGNORE INTO DEVICE_IMAGE_RECEIPT values('Device1','AA:AA:AA:AA:AA:AA','someTagsHere','28.8','93.0','2016-10-25 20:51:00','Device2','BB:BB:BB:BB:BB:BB','image/jpeg','jpeg','/storage/emulated/0/testFile.jpg','MAC-testFile.jpg')");
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS BT_ALWAYS_DIS(isDiscoverable int)");
+        mydatabase.execSQL("CREATE TABLE IF NOT EXISTS CONNECT_ALL_ATTEMPT_TBL(doneOrNot INTEGER,PRIMARY KEY(doneOrNot))");
+        mydatabase.execSQL("INSERT OR IGNORE INTO CONNECT_ALL_ATTEMPT_TBL VALUES(1)");
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS SENT_IMAGE_LOG(UUID VARCHAR, sentTo VARCHAR, receivedFrom VARCHAR,PRIMARY KEY(UUID,sentTo,receivedFrom))");
         String UUIDs[]={"8ce255c0-200a-11e0-ac64-0800200c9a66","8ce255c0-200a-11e0-ac64-0800200c9a67","8ce255c0-200a-11e0-ac64-0800200c9a68","8ce255c0-200a-11e0-ac64-0800200c9a69","8ce255c0-200a-11e0-ac64-0800200c9a70","8ce255c0-200a-11e0-ac64-0800200c9a71","8ce255c0-200a-11e0-ac64-0800200c9a72"};
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS MESSAGE_TBL(imagePath VARCHAR, latitude REAL,longitude REAL,timestamp DATE,tagsForCurrentImage VARCHAR,fileName VARCHAR,mime VARCHAR,format VARCHAR,sourceMacAddr VARCHAR,sourceName VARCHAR,UUID VARCHAR,destMacAddr VARCHAR,destName VARCHAR, size INTEGER, quality INTEGER,priority INTEGER,PRIMARY KEY(imagePath,UUID))");
+        Log.d("DbTableCreation","Creating ADDED_TAGS_TBL");
+        mydatabase.execSQL("CREATE TABLE IF NOT EXISTS ADDED_TAGS_TBL(UUID VARCHAR, addedTags VARCHAR,PRIMARY KEY(UUID))");
+        Log.d("DbTableCreation","Created ADDED_TAGS_TBL");
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS INCENT_FOR_MSG_TBL(UUID VARCHAR,promised double,received double,paid double,PRIMARY KEY(UUID))");
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS CONNECTED_LOG_TBL(MacAddr VARCHAR, doneOrNot INTEGER, PRIMARY KEY(MacAddr))");
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS INCENTIVES_TBL(incentive real)");
@@ -39,8 +44,8 @@ public class DbTableCreation {
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS MAC_RSSI_TBL(MacAd VARCHAR,RSSI VARCHAR)");
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS INCENT_UUID_MAC_TBL(MacAd VARCHAR,UUID VARCHAR,incentive real,PRIMARY KEY(MacAd,UUID))");
         mydatabase.execSQL("CREATE TABLE IF NOT EXISTS TSR_SHARE_DONE_TBL(MacAd VARCHAR, doneOrNor INTEGER)");
-        mydatabase.execSQL("CREATE TABLE IF NOT EXISTS CONNECT_ALL_ATTEMPT_TBL(doneOrNot INTEGER,PRIMARY KEY(doneOrNot))");
-        mydatabase.execSQL("INSERT OR IGNORE INTO CONNECT_ALL_ATTEMPT_TBL VALUES(1)");
+
+
         //Cursor cursorForRole = mydatabase.rawQuery("SELECT role from ROLE_TBL",null);
         //if(cursorForRole.getCount()==0)
         mydatabase.execSQL("INSERT OR IGNORE INTO ROLE_TBL VALUES(0,'SELF')");

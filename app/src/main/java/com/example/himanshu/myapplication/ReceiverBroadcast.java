@@ -43,6 +43,7 @@ public class ReceiverBroadcast extends BroadcastReceiver{
             dbFunctions.devicesDisconnectedTime(mydatabase,device.getAddress(),device.getName());
             dbFunctions.unsetConnectedLogTBL(mydatabase,device.getAddress());
             Constants.deviceToSocket.remove(device.getAddress());
+            mydatabase.execSQL("DELETE FROM INCENT_UUID_MAC_TBL where MacAd='"+device.getAddress()+"'");
 
         }
         if(BluetoothAdapter.ACTION_STATE_CHANGED.equals(action))
@@ -63,8 +64,14 @@ public class ReceiverBroadcast extends BroadcastReceiver{
                 mydatabase.execSQL("DELETE FROM CONNECTED_LOG_TBL");
                 mydatabase.execSQL("UPDATE CONNECT_ALL_ATTEMPT_TBL SET doneOrNot=1");
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                mydatabase.execSQL("DELETE FROM INCENT_UUID_MAC_TBL");
+                try{
                 if(Constants.deviceToSocket!=null)
-                Constants.deviceToSocket.remove(device.getAddress());
+                Constants.deviceToSocket.remove(device.getAddress());}
+                catch (Exception e)
+                {
+                    Log.d("ReceiverBroadcast","Exception in ReceiverBroadcast:"+e);
+                }
 
             }
         }

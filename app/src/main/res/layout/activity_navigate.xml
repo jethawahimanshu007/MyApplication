@@ -2,9 +2,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#f0f0f0">
-
+    
     <GridView
-        android:id="@+id/gridViewReceived"
+        android:id="@+id/gridViewNavigate"
         android:layout_width="fill_parent"
         android:layout_height="match_parent"
         android:layout_margin="5dp"
@@ -16,4 +16,3 @@
         android:focusable="true"
         android:clickable="true"/>
 </RelativeLayout>
-

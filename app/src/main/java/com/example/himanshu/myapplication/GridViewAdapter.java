@@ -18,7 +18,16 @@ public class GridViewAdapter extends ArrayAdapter<ImageItem> {
     private Context context;
     private int layoutResourceId;
     private ArrayList<ImageItem> data = new ArrayList<ImageItem>();
-
+    private int imageGrid=R.id.imageGrid;
+    private int textGrid=R.id.textGrid;
+    public GridViewAdapter(Context context, int layoutResourceId, ArrayList<ImageItem> data,int imageGridR,int textGridR) {
+        super(context, layoutResourceId, data);
+        this.layoutResourceId = layoutResourceId;
+        this.context = context;
+        this.data = data;
+        this.imageGrid=imageGridR;
+        this.textGrid=textGridR;
+    }
     public GridViewAdapter(Context context, int layoutResourceId, ArrayList<ImageItem> data) {
         super(context, layoutResourceId, data);
         this.layoutResourceId = layoutResourceId;
@@ -35,8 +44,8 @@ public class GridViewAdapter extends ArrayAdapter<ImageItem> {
             LayoutInflater inflater = ((Activity) context).getLayoutInflater();
             row = inflater.inflate(layoutResourceId, parent, false);
             holder = new ViewHolder();
-            holder.imageTitle = (TextView) row.findViewById(R.id.textGrid);
-            holder.image = (ImageView) row.findViewById(R.id.imageGrid);
+            holder.imageTitle = (TextView) row.findViewById(textGrid);
+            holder.image = (ImageView) row.findViewById(imageGrid);
             row.setTag(holder);
         } else {
             holder = (ViewHolder) row.getTag();

@@ -8,6 +8,8 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.design.widget.NavigationView;
@@ -21,7 +23,9 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.GridView;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
@@ -34,6 +38,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -44,6 +49,8 @@ import java.util.zip.ZipOutputStream;
 public class avBar extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
+    private GridView gridView;
+    private GridViewAdapter gridAdapter;
     // Storage Permissions
     public  static Activity activityMain;
 
@@ -81,6 +88,9 @@ public class avBar extends AppCompatActivity
         setContentView(R.layout.activity_av_bar);
 
         final SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
+        ///Db table creation
+        DbTableCreation dbTableCreation=new DbTableCreation();
+        dbTableCreation.createTables(this);
 
         Intent serviceIntent = new Intent(this,BTAcceptService.class);
         String macAddress = android.provider.Settings.Secure.getString(getContentResolver(), "bluetooth_address");
@@ -105,9 +115,7 @@ public class avBar extends AppCompatActivity
 
         
 
-        ///Db table creation
-        DbTableCreation dbTableCreation=new DbTableCreation();
-        dbTableCreation.createTables(this);
+
         setContentView(R.layout.activity_av_bar);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -129,12 +137,12 @@ public class avBar extends AppCompatActivity
             TextView tv = (TextView) findViewById(R.id.roleTextView);
             if(role==1)
             {
-                tv.setText("Hello Sergeant!", TextView.BufferType.EDITABLE);
+                tv.setText("Hello Sergeant, please select from options below!", TextView.BufferType.EDITABLE);
                 tv.setVisibility(View.VISIBLE);
             }
             else if(role==2)
             {
-                tv.setText("Hello Soldier!", TextView.BufferType.EDITABLE);
+                tv.setText("Hello Soldier, please select from options below!", TextView.BufferType.EDITABLE);
                 tv.setVisibility(View.VISIBLE);
             }
         }
@@ -156,6 +164,45 @@ public class avBar extends AppCompatActivity
             return;
         }
 
+        gridView = (GridView) findViewById(R.id.gridViewMain);
+        gridAdapter = new GridViewAdapter(this, R.layout.grid_item_man, getButtons(),R.id.imageGrid1,R.id.textGrid1);
+        gridView.setAdapter(gridAdapter);
+
+       gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
+                ImageItem item = (ImageItem) parent.getItemAtPosition(position);
+                String title=item.getTitle();
+                Intent intent=new Intent(avBar.this, avBar.class);
+                switch(title)
+                {
+                    case "Gallery":intent = new Intent(avBar.this, GalleryTags.class);
+                        break;
+                    case "Camera":intent = new Intent(avBar.this, CameraActivity.class);
+                        break;
+                    case "Neighbors":intent = new Intent(avBar.this, ConnectedDevices.class);
+                        break;
+                    case "Interests":intent = new Intent(avBar.this, TSRsActivity.class);
+                        break;
+                    case "Add interests":intent = new Intent(avBar.this, AddKeywords.class);
+                        break;
+                    case "Incentives":intent = new Intent(avBar.this, IncentiveActivity.class);
+                        break;
+                    case "Navigate":intent = new Intent(avBar.this, NavigateActivity.class);
+                        break;
+                    case "Saved Messages":intent = new Intent(avBar.this, OwnMessagesActivity.class);
+                        break;
+                    case "Inbox":intent = new Intent(avBar.this, ShowReceivedImages.class);
+                        break;
+                    case "Enrich":intent = new Intent(avBar.this, EnrichContent.class);
+                        break;
+                }
+                //Create intent
+               /* Intent intent = new Intent(OwnMessagesActivity.this, DetailsActivity.class);
+                intent.putExtra("title", item.getTitle());*/
+                startActivity(intent);
+
+           }
+        });
 
 
     }
@@ -229,6 +276,17 @@ public class avBar extends AppCompatActivity
             Intent intent = new Intent(this, IncentiveActivity.class);
             startActivity(intent);
         }
+        else if(id==R.id.addMoreTags)
+        {
+            Intent intent = new Intent(this, EnrichContent.class);
+            startActivity(intent);
+        }
+        else if(id==R.id.nav_navigate)
+        {
+            Intent intent = new Intent(this, NavigateActivity.class);
+            startActivity(intent);
+        }
+
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
@@ -312,7 +370,7 @@ public class avBar extends AppCompatActivity
                     mydatabase.execSQL("UPDATE ROLE_TBL set role=1 WHERE MACAd='SELF'");
                     RadioGroup rg=(RadioGroup)findViewById(R.id.radioGroup);
                     rg.setVisibility(View.INVISIBLE);
-                    tv.setText("Hello Sergeant!", TextView.BufferType.EDITABLE);
+                    tv.setText("Hello Sergeant, please select from options below!", TextView.BufferType.EDITABLE);
                     tv.setVisibility(View.VISIBLE);
                 }
                     break;
@@ -322,7 +380,7 @@ public class avBar extends AppCompatActivity
                     RadioGroup rg=(RadioGroup)findViewById(R.id.radioGroup);
                     rg.setVisibility(View.INVISIBLE);
                     TextView tv = (TextView) findViewById(R.id.roleTextView);
-                    tv.setText("Hello Soldier!", TextView.BufferType.EDITABLE);
+                    tv.setText("Hello Soldier, please select from options below!", TextView.BufferType.EDITABLE);
                     tv.setVisibility(View.VISIBLE);
                 }
                     break;
@@ -359,6 +417,33 @@ public class avBar extends AppCompatActivity
         }
     }
 
+
+    private ArrayList<ImageItem> getButtons() {
+        final ArrayList<ImageItem> imageItems = new ArrayList<>();
+
+        Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.gallerybigg);
+        imageItems.add(new ImageItem(bm,"Gallery"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.camerabig);
+        imageItems.add(new ImageItem(bm,"Camera"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.neighborsbig);
+        imageItems.add(new ImageItem(bm,"Neighbors"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.listbig);
+        imageItems.add(new ImageItem(bm,"Interests"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.listaddbig);
+        imageItems.add(new ImageItem(bm,"Add interests"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.briefcasebig);
+        imageItems.add(new ImageItem(bm,"Incentives"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.navigatebig);
+        imageItems.add(new ImageItem(bm,"Navigate"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.savedmessagebig);
+        imageItems.add(new ImageItem(bm,"Saved Messages"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.inboxbig);
+        imageItems.add(new ImageItem(bm,"Inbox"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.enrichbig);
+        imageItems.add(new ImageItem(bm,"Enrich"));
+
+        return imageItems;
+    }
 
 }
 

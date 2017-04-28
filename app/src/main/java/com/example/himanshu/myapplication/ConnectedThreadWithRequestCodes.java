@@ -473,6 +473,11 @@ class ConnectedThreadWithRequestCodes extends Thread {
                             double incentivePresent=0;
                             double incentiveRequired=Double.parseDouble(new String(preamble).split("::")[2].split(":")[1]);
                             UUID=new String(preamble).split("::")[3];
+                            String addedTags="";
+                            if(new String(preamble).split("::").length>5)
+                            addedTags=new String(preamble).split("::")[4];
+                            if(addedTags!=null && addedTags.length()>0)
+                                incentiveRequired=incentiveRequired+1;
                             Cursor cursorIncent=mydatabase.rawQuery("SELECT incentive from INCENTIVES_TBL",null);
                             double sumIncents=0.0;
                             while(cursorIncent.moveToNext())
@@ -487,6 +492,7 @@ class ConnectedThreadWithRequestCodes extends Thread {
                             }
 
                             int flag=0;
+
                             Log.d("CTwRC","IncentivePrsent, sum Incents and incentiveRequired are:"+incentivePresent+","+sumIncents+","+incentiveRequired);
                             if((incentivePresent-sumIncents-incentiveRequired)>=0)
                                 flag=1;
@@ -667,7 +673,14 @@ class ConnectedThreadWithRequestCodes extends Thread {
             Log.d("CTwRC",size+":::"+quality+":::"+priority);
             java.io.RandomAccessFile raf = new java.io.RandomAccessFile(imagePath, "r");
             byte[] b = new byte[(int) raf.length()];
-
+            Cursor cursorForNewTags=mydatabase.rawQuery("SELECT * from ADDED_TAGS_TBL where UUID='"+UUIDRep+"'",null);
+            String addedTags="";
+            while(cursorForNewTags.moveToNext())
+            {
+                addedTags=cursorForNewTags.getString(1);
+            }
+            if(!addedTags.equals(""))
+                tagsForCurrentImage=tagsForCurrentImage+","+addedTags;
             raf.readFully(b);
             int codeForMessage = Constants.MESSAGE_IMAGE;
             String preambleString=new String();
@@ -1263,7 +1276,17 @@ class ConnectedThreadWithRequestCodes extends Thread {
         Log.d("CTwRC","Values of destMsC and relayMsC are:"+destMsC+"::"+relayMsC);
         if(destMsC!=0) {
             for (int i = destMsC - 1; i >= 0; i--) {
-                String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ + "::IncentiveRequired:" + destMs[i].incentive + "::" + destMs[i].UUID + "::";
+                Cursor cursorForNewTags=mydatabase.rawQuery("SELECT * from ADDED_TAGS_TBL where UUID='"+destMs[i].UUID+"'",null);
+                String addedTags="";
+                while(cursorForNewTags.moveToNext())
+                {
+                    addedTags=cursorForNewTags.getString(1);
+                }
+                String preambleString=new String();
+                if(addedTags.equals(""))
+                    preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ + "::IncentiveRequired:" + destMs[i].incentive + "::" + destMs[i].UUID + "::";
+                else
+                    preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ + "::IncentiveRequired:" + destMs[i].incentive + "::" + destMs[i].UUID + "::"+addedTags+"::";
                 Log.d("ConnectThread", "Preamble String is:" + preambleString);
                 ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(destMs[i].remoteMAC), context);
                 //Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);

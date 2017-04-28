@@ -4,11 +4,11 @@
     <group android:checkableBehavior="single">
         <item
             android:id="@+id/nav_camera"
-            android:icon="@drawable/ic_menu_camera"
-            android:title="@string/take_a_photo" />
+            android:icon="@drawable/camera"
+            android:title="Camera" />
         <item
             android:id="@+id/nav_gallery"
-            android:icon="@drawable/ic_menu_gallery"
+            android:icon="@drawable/gallery"
             android:title="@string/gallery" />
         <item
             android:id="@+id/nav_neighbors"
@@ -16,31 +16,38 @@
             android:title="@string/neighbors" />
         <item
             android:id="@+id/nav_manage"
-            android:icon="@drawable/ic_menu_manage"
-            android:title="Add keywords" />
+            android:icon="@drawable/addinterests"
+            android:title="Add Interests" />
         <item
             android:id="@+id/TSRsAct"
-            android:icon="@drawable/ic_menu_manage"
-            android:title="TSRs" />
+            android:icon="@drawable/allinterests"
+            android:title="Interests" />
         <item
             android:id="@+id/OwnMessagesAct"
-            android:icon="@drawable/ic_menu_manage"
-            android:title="Own Messages" />
+            android:icon="@drawable/savedmessages"
+            android:title="Saved messages" />
+        <item
+            android:id="@+id/nav_share"
+            android:icon="@drawable/inbox"
+            android:title="Inbox" />
+
+        <item
+            android:id="@+id/nav_navigate"
+            android:icon="@drawable/navigate"
+            android:title="navigate" />
         <item
             android:id="@+id/IncentiveAct"
-            android:icon="@drawable/ic_menu_manage"
+            android:icon="@drawable/briefcase"
             android:title="Incentives" />
+        <item
+            android:id="@+id/addMoreTags"
+            android:icon="@drawable/enrich"
+            android:title="Enrich" />
+
+
+
 
     </group>
 
-    <item android:title="Lists">
-        <menu>
-            <item
-                android:id="@+id/nav_share"
-                android:icon="@drawable/ic_menu_share"
-                android:title="Received files" />
-
-        </menu>
-    </item>
 
 </menu>

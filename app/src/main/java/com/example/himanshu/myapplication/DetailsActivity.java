@@ -87,7 +87,7 @@ public class DetailsActivity extends ActionBarActivity {
                         /*ICDCS*/
 
                     }
-                Log.d("DetailsActivity","allAttributes in DetailsActivity is:"+allAttributes);
+                //Log.d("DetailsActivity","allAttributes in DetailsActivity is:"+allAttributes);
                 TextView titleTextView = (TextView) findViewById(R.id.titleDetails);
                 titleTextView.setText(allAttributes);
                 titleTextView.setMovementMethod(new ScrollingMovementMethod());

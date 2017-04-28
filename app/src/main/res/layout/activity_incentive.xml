@@ -30,6 +30,8 @@
         android:layout_marginTop="100dp"
         android:text="Reset DB"
         />
+
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -43,7 +45,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Zero tokens left, participate in relaying"
+        android:text="Token left less than the max required to receive, participate in relaying"
         android:id="@+id/warning"
         android:textSize="25dp"
         android:layout_marginTop="230dp"
