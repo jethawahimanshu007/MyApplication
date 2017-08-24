@@ -5,8 +5,9 @@
     android:layout_height="match_parent"
     xmlns:fbutton="http://schemas.android.com/apk/res-auto"
     tools:context="com.example.himanshu.myapplication.GalleryTags"
+    android:weightSum="100"
     android:orientation="vertical"
-    android:weightSum="100">
+    android:baselineAligned="false">
 
 
     <com.example.himanshu.myapplication.FButton

@@ -26,7 +26,7 @@ public interface Constants {
     public static final String DEVICE_NAME = "device_name";
     public static final String TOAST = "toast";
 
-    public static final int PREAMBLE_SIZE=400;
+        public static final int PREAMBLE_SIZE=400;
     public static final String DATABASE_NAME="DTNShare.db";
 
     public static final int MESSAGE_TAGS=1;     //Implying the next message will be of type tags text
@@ -46,7 +46,7 @@ public interface Constants {
     public static final int MESSAGE_INCENT_REW=15;
     public static final int MESSAGE_TRANS_DONE=16;
     public static final int MESSAGE_TEST=101;
-
+    public static final String IP_ADDRESS="";
 
 
 

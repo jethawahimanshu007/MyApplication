@@ -60,7 +60,8 @@ public class avBar extends AppCompatActivity
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.INTERNET
+            Manifest.permission.INTERNET,
+            Manifest.permission.SYSTEM_ALERT_WINDOW
 
     };
 
@@ -194,6 +195,10 @@ public class avBar extends AppCompatActivity
                     case "Inbox":intent = new Intent(avBar.this, ShowReceivedImages.class);
                         break;
                     case "Enrich":intent = new Intent(avBar.this, EnrichContent.class);
+                    break;
+                    case "Add Ratings":intent = new Intent(avBar.this, Ratings.class);
+                        break;
+                    case "Ratings": intent = new Intent(avBar.this, ShowRatings.class);
                         break;
                 }
                 //Create intent
@@ -284,6 +289,16 @@ public class avBar extends AppCompatActivity
         else if(id==R.id.nav_navigate)
         {
             Intent intent = new Intent(this, NavigateActivity.class);
+            startActivity(intent);
+        }
+        else if(id==R.id.nav_ratings)
+        {
+            Intent intent = new Intent(this, NavigateActivity.class);
+            startActivity(intent);
+        }
+        else if(id==R.id.nav_wifi_dis)
+        {
+            Intent intent = new Intent(this, WifiDiscovery.class);
             startActivity(intent);
         }
 
@@ -441,9 +456,14 @@ public class avBar extends AppCompatActivity
         imageItems.add(new ImageItem(bm,"Inbox"));
         bm = BitmapFactory.decodeResource(getResources(), R.drawable.enrichbig);
         imageItems.add(new ImageItem(bm,"Enrich"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.addrating);
+        imageItems.add(new ImageItem(bm,"Add Ratings"));
+        bm = BitmapFactory.decodeResource(getResources(), R.drawable.ratingsbig);
+        imageItems.add(new ImageItem(bm,"Ratings"));
 
         return imageItems;
     }
 
 }
 
+/// Replace 18:3B:D2:E9:CC:9B with   18:3B:D2:E9:CC:9B

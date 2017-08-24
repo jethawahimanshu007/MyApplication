@@ -10,6 +10,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.google.android.providers.gsf.permisson.READ_GSERVICES" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission
+        android:name="android.permission.ACCESS_WIFI_STATE"
+        android:required="true" />
+    <uses-permission
+        android:name="android.permission.CHANGE_WIFI_STATE"
+        android:required="true" />
 
     <application
         android:allowBackup="true"
@@ -47,6 +54,8 @@
                 <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
                 <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
                 <action android:name="android.bluetooth.adapter.action.STATE_CHANGED" />
+                <action android:name="android.net.wifi.WIFI_STATE_CHANGED" />
+                <action android:name="android.net.wifi.STATE_CHANGE" />
             </intent-filter>
         </receiver>
 
@@ -57,10 +66,14 @@
         <activity android:name=".IncentiveActivity" />
         <activity android:name=".EnrichContent" />
         <activity android:name=".EnrichContentMain" />
-        <activity android:name=".GoToLocation" />
         <activity android:name=".LocReached" />
         <activity android:name=".NavigateActivity" />
-        <activity android:name=".ListViewCheckBoxesActivity"></activity>
+        <activity android:name=".ListViewCheckBoxesActivity" />
+        <activity android:name=".Ratings" />
+        <activity android:name=".RatingsMain" />
+        <activity android:name=".ShowRatings" />
+        <activity android:name=".WifiNetworking.WifiDiscovery" />
+        <activity android:name=".WifiDiscovery"></activity>
     </application>
 
 </manifest>

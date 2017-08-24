@@ -28,4 +28,8 @@
     <color name="fbutton_color_concrete">#95a5a6</color>
     <color name="fbutton_color_asbestos">#7f8c8d</color>
     <color name="fbutton_color_transparent">@android:color/transparent</color>
+    <color name="grey">#cccccc</color>
+    <color name="orange1">#ff9900</color>
+    <color name="orange2">#ff6600</color>
+    <color name="orange3">#ff3300</color>
 </resources>

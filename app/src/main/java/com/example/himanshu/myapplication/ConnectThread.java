@@ -64,6 +64,7 @@ class ConnectThread extends Thread {
     Uri uri;
     public final BluetoothSocket mmSocket[];
     public final BluetoothDevice mmDevice[];
+    public int deviceClasses[];
     public SQLiteDatabase mydatabase;
   //HImanshu--  private final Handler mHandlerInput;
     BluetoothAdapter mBluetoothAdapter=BluetoothAdapter.getDefaultAdapter();
@@ -104,10 +105,12 @@ class ConnectThread extends Thread {
         BluetoothSocket tmp = null;
         mmDevice = new BluetoothDevice[lengthOfArray];
         mmSocket=new BluetoothSocket[lengthOfArray];
+        deviceClasses=new int[lengthOfArray];
         for(int i=0;i<mmDevice.length;i++)
         {
-            BluetoothDevice device= BluetoothAdapter.getDefaultAdapter().getRemoteDevice(deviceStrings[i]);
+            BluetoothDevice device= BluetoothAdapter.getDefaultAdapter().getRemoteDevice(deviceStrings[i].split("--")[0]);
             mmDevice[i]=device;
+            deviceClasses[i]=Integer.parseInt(deviceStrings[i].split("--")[1]);
         }
         this.context=context;
         mydatabase = context.openOrCreateDatabase(Constants.DATABASE_NAME, context.MODE_PRIVATE, null);
@@ -139,13 +142,26 @@ class ConnectThread extends Thread {
             {
                 flagToConnect=0;
                 //Log.d("ConnectThread","The device address and name is:"+mmDevice[i].getAddress()+"::"+mmDevice[i].getName());
-                //if((mmDevice[i].getAddress().equals("24:DA:9B:43:01:0C")||mmDevice[i].getAddress().equals("BC:F5:AC:5D:5D:50"))||mmDevice[i].getAddress().equals("D0:87:E2:4E:7A:2B")) {
-                                                                                                            //Dell--Tablet--Phone
-                    if (new DbFunctions().ifDeviceConnected(mydatabase, mmDevice[i].getAddress()) == 0 && ((mmDevice[i].getAddress().trim().equals("18:3B:D2:EA:15:62")) || (mmDevice[i].getAddress().trim().equals("D0:87:E2:4E:7A:2B")) || (mmDevice[i].getAddress().trim().equals("24:DA:9B:43:01:0C")))) {
+                //if((mmDevice[i].getAddress().equals("18:3B:D2:E9:CC:9B")||mmDevice[i].getAddress().equals("BC:F5:AC:5D:5D:50"))||mmDevice[i].getAddress().equals("D0:87:E2:4E:7A:2B")) {
+
+
+                    if(deviceClasses[i]==268)
+                    {
+                        try {
+                            mmSocket[i].connect();
+                        }
+                        catch(Exception e)
+                        {
+                            Log.d("ConnectThread","Connection to laptop failed because:"+e);
+                        }
+                    }
+
+                        //Dell--Tablet--Phone
+                    if (new DbFunctions().ifDeviceConnected(mydatabase, mmDevice[i].getAddress()) == 0 && ((mmDevice[i].getAddress().trim().equals("18:3B:D2:EA:15:62")) || (mmDevice[i].getAddress().trim().equals("D0:87:E2:4E:7A:2B")) || (mmDevice[i].getAddress().trim().equals("18:3B:D2:E9:CC:9B")))) {
                       /*For tablet*/ /* if (new DbFunctions().ifDeviceConnected(mydatabase, mmDevice[i].getAddress()) == 0 && ((mmDevice[i].getAddress().trim().equals("18:3B:D2:EA:15:62")))) {/
-                      /*For Dell*/  /*if (new DbFunctions().ifDeviceConnected(mydatabase, mmDevice[i].getAddress()) == 0 &&  (mmDevice[i].getAddress().trim().equals("24:DA:9B:43:01:0C"))) {*/
+                      /*For Dell*/  /*if (new DbFunctions().ifDeviceConnected(mydatabase, mmDevice[i].getAddress()) == 0 &&  (mmDevice[i].getAddress().trim().equals("18:3B:D2:E9:CC:9B"))) {*/
                         String macAddress = android.provider.Settings.Secure.getString(context.getContentResolver(), "bluetooth_address");
-                        if (macAddress.equals("18:3B:D2:EA:15:62") && (mmDevice[i].getAddress().trim().equals("24:DA:9B:43:01:0C")))
+                        if (macAddress.equals("18:3B:D2:EA:15:62") && (mmDevice[i].getAddress().trim().equals("18:3B:D2:E9:CC:9B")))
                             flagToConnect = 1;
                         if (macAddress.equals("D0:87:E2:4E:7A:2B") && (mmDevice[i].getAddress().trim().equals("18:3B:D2:EA:15:62")))
                             flagToConnect = 1;
@@ -219,7 +235,28 @@ class ConnectThread extends Thread {
             }
           //  Log.d("ConnectThread", "new TSRs are:" + TSRsToShare);
             byte[] byteArrayTSRsToShare = TSRsToShare.getBytes();
-            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TSRS + "::MessageSize:" + byteArrayTSRsToShare.length + "::Role:"+Role+"::";
+
+            String ratingsDevices=new String();
+            int countR=0;
+            Cursor cursorForDeviceRatings=mydatabase.rawQuery("SELECT * from USER_RATING_MAP_TBL",null);
+            int noOfRows=cursorForDeviceRatings.getCount();
+            if(noOfRows==0)
+                ratingsDevices="NO";
+            while(cursorForDeviceRatings.moveToNext())
+            {
+                if(countR!=0) {
+                    ratingsDevices+=",";
+                }
+                    String MacAd = cursorForDeviceRatings.getString(0);
+                    double rating = cursorForDeviceRatings.getDouble(1);
+                    ratingsDevices += MacAd + "--" + rating;
+
+                countR++;
+            }
+
+            Log.d("ConnectThread","ratingsDevices is:"+ratingsDevices);
+            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TSRS + "::MessageSize:" + byteArrayTSRsToShare.length + "::Role:"+Role+"::"+ratingsDevices+"::";
+
             //Log.d("ConnectThread", "Preamble String is:" + preambleString);
             ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) pair.getValue(), context);
             Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
@@ -244,6 +281,7 @@ class ConnectThread extends Thread {
         //Map of messages to be sent
         class MesParams  implements Comparable<MesParams>{
             String UUID;
+            String sourceMac;
             long size,quality,priority;
             double sumWeightsRemote;
             double incentive;
@@ -291,13 +329,15 @@ class ConnectThread extends Thread {
                 //Iterate through all the messages for the device and tag combo
                 while (cursorForMatchingImage.moveToNext()) {
 
+                    String sourceForMessage=cursorForMatchingImage.getString(8);
+
                     String tagsForCurrentImage=cursorForMatchingImage.getString(4);
                     String UUID=cursorForMatchingImage.getString(10);
                     Log.d("ConnectThread","postConnMT::Message considered for transfer:"+UUID);
                     int sizeIndex=cursorForMatchingImage.getColumnIndex("size"); int qualityIndex=cursorForMatchingImage.getColumnIndex("quality"); int priorityIndex=cursorForMatchingImage.getColumnIndex("priority");
                     long size=cursorForMatchingImage.getLong(sizeIndex); long quality=cursorForMatchingImage.getLong(qualityIndex);int priority=cursorForMatchingImage.getInt(priorityIndex);
                     MesParams mesParams=new MesParams();
-                    mesParams.remoteMAC=remoteMAC;
+                    mesParams.remoteMAC=remoteMAC; mesParams.sourceMac=sourceForMessage;
                     mesParams.UUID=UUID; mesParams.quality=quality;mesParams.priority=priority;
                     if(sizeMax>size)
                         sizeMax=size;
@@ -474,7 +514,8 @@ class ConnectThread extends Thread {
         for(int i=destMsC-1;i>=0;i++)
         {
             String Preamble;
-            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ+"::IncentiveRequired:"+destMs[i].incentive+"::UUID:"+destMs[i].UUID+"::";
+            Log.d("ConnectThread","Value of sourceMac is:"+destMs[i].sourceMac);
+            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ+"::IncentiveRequired:"+destMs[i].incentive+"::UUID:"+destMs[i].UUID+"::"+destMs[i].sourceMac+"::";
             Log.d("ConnectThread", "Preamble String is:" + preambleString);
             ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(destMs), context);
             //Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);

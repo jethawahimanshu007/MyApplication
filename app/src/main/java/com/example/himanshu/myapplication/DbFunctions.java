@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteStatement;
 import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
@@ -372,15 +373,28 @@ public class DbFunctions {
     }
     public void devicesDisconnectedTime(SQLiteDatabase mydatabase,String deviceMacAddress,String deviceName)
     {
-        Cursor cursorForDisConnectedDevices = mydatabase.rawQuery("SELECT * from DEVICE_DISCONNECTED_TIME where deviceMacAddr='"+deviceMacAddress+"' and deviceName='"+deviceName+"'", null);
-        if (cursorForDisConnectedDevices != null)
-        {
-            String sqlQuery="UPDATE DEVICE_DISCONNECTED_TIME set currentTime=(datetime('now','localtime'))"+ "where deviceMacAddr='"+deviceMacAddress+"','"+deviceName+"')";
+        try {
+            Cursor cursorForDisConnectedDevices = mydatabase.rawQuery("SELECT * from DEVICE_DISCONNECTED_TIME where deviceMacAddr='" + deviceMacAddress + "' and deviceName='" + deviceName + "'", null);
+            if (cursorForDisConnectedDevices != null) {
+                String sqlQuery = "UPDATE DEVICE_DISCONNECTED_TIME set currentTime=(datetime('now','localtime'))" + "where deviceMacAddr='" + deviceMacAddress + "','" + deviceName + "')";
+            } else {
+
+                try {
+                    String sqlQuery = "INSERT INTO DEVICE_DISCONNECTED_TIME(deviceMacAddr,deviceName) values ('" + deviceMacAddress + "','" + deviceName + "')";
+                    mydatabase.execSQL(sqlQuery);
+                } catch (Exception e) {
+                    Log.d("DbFunctions", "Exception occured:" + e);
+                }
+            /*(SQLiteStatement stmt=mydatabase.compileStatement("INSERT INTO DEVICE_DISCONNECTED_TIME(deviceMacAddr,deviceName) values (?,?)");
+            stmt.bindString(1,deviceMacAddress);
+            stmt.bindString(2,deviceName);
+            stmt.execute();
+            )*/
+            }
         }
-        else
+        catch(Exception e)
         {
-            String sqlQuery="INSERT INTO DEVICE_DISCONNECTED_TIME(deviceMacAddr,deviceName) values ('"+deviceMacAddress+"','"+deviceName+"')";
-            mydatabase.execSQL(sqlQuery);
+            Log.d("DbFunctions","Exception occured:"+e);
         }
     }
     public void insertIntoTSRTbl(SQLiteDatabase mydatabase, String tags)
@@ -452,7 +466,7 @@ public class DbFunctions {
                     String tempRemoteBelongsTo = tempTSRVals[2];
                     Log.d("DbFunctions","saveRemoteTSRs-- Before DbFunctions insert into TSR_REMOTE_TBL:");
                     mydatabase.execSQL("INSERT OR IGNORE INTO TSR_REMOTE_TBL(deviceMacAddr,SI,weight,belongs_to) VALUES('" + bluetoothDevice.getAddress() + "','" + tempRemoteSI + "'," + Double.parseDouble(tempRemoteWeightSI) + ",'" + tempRemoteBelongsTo + "')");
-                    Log.d("DbFunctions","saveRemoteTSRs-- After DbFunctions insert into TSR_REMOTE_TBL:");
+                    Log.d("DbFunctions","saveRemoteTSRs-- After DbFunctions insert into TSR_REMOTE_TBL, SI and remoteMAC inserted are:"+tempRemoteSI+"::"+bluetoothDevice.getAddress());
                     mydatabase.execSQL("UPDATE TSR_REMOTE_TBL set weight=" + tempRemoteWeightSI + " where deviceMacAddr='" + bluetoothDevice.getAddress() + "' and SI='" + tempRemoteSI + "'");
                     ///Here insertion of new TSRs into TSR_TBL is done
                     Cursor cursorForTSRs = mydatabase.rawQuery("SELECT * from TSR_TBL where SI='" + tempRemoteSI + "'", null);
@@ -988,6 +1002,20 @@ public class DbFunctions {
                 + " Meter   " + meterInDec);
 
         return Radius * c;
+    }
+
+    public void deleteLeastRecent(SQLiteDatabase mydatabase)
+    {
+        Cursor noRows=mydatabase.rawQuery("SELECT * from LAST_FIVE_TRANS",null);
+        int noRowsCount=noRows.getCount();
+        Cursor minTime=mydatabase.rawQuery("SELECT min(time) from LAST_FIVE_TRANS",null);
+        Log.d("DbFunctions","Number of rows in LAST_FIVE_TRANS are:"+minTime.getCount());
+        if(minTime!=null && noRowsCount>5) {
+            Log.d("DbFunctions","Record Need to be deleted");
+            minTime.moveToFirst();
+            String minTimeS = minTime.getString(0);
+            mydatabase.execSQL("DELETE from LAST_FIVE_TRANS where time='"+minTimeS+"'");
+        }
     }
 }
 

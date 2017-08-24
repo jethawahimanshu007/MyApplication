@@ -47,12 +47,34 @@
         android:layout_height="wrap_content"
         android:text="Token left less than the max required to receive, participate in relaying"
         android:id="@+id/warning"
-        android:textSize="25dp"
-        android:layout_marginTop="230dp"
+        android:textSize="15dp"
+        android:layout_marginTop="200dp"
         android:textColor="#FF4081"
         android:layout_centerHorizontal="true"
-        android:visibility="gone"></TextView>
+        ></TextView>
+
 
     //ICDCS
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Last five transactions"
+        android:id="@+id/HeadingList"
+        android:textSize="25dp"
+        android:layout_marginTop="260dp"
+        android:textColor="#FF4081"
+        android:layout_centerHorizontal="true"
+        ></TextView>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="No transactions to show"
+        android:id="@+id/ShowLastFive"
+        android:textSize="12dp"
+        android:layout_marginTop="300dp"
+        android:textColor="#FF4081"
+        android:layout_centerHorizontal="true"
+        ></TextView>
 
 </RelativeLayout>

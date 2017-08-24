@@ -17,6 +17,7 @@ import java.io.InputStream;
 
 import java.io.OutputStream;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -150,7 +151,7 @@ class ConnectedThreadWithRequestCodes extends Thread {
 
                     if(MessageType!=Constants.MESSAGE_IMAGE_ACK && MessageType!=Constants.MESSAGE_IMAGE_BACK_ACK && MessageType!=Constants.MESSAGE_INCENT_REQ && MessageType!=Constants.MESSAGE_INCENT_REW && MessageType!=Constants.MESSAGE_INCENT_REP && MessageType!=Constants.MESSAGE_TRANS_DONE) {
                         MessageSize = Integer.parseInt(new String(preamble).split("::")[2].split(":")[1]);
-                        Role = new String(preamble).split("::")[2].split(":")[1];
+                        Role = new String(preamble).split("::")[3].split(":")[1];
                         if (new String(preamble).contains("Lengths")) {
                             fileNameImage = new String(preamble).split("::")[3].split(":")[1];
                             fileNameLength = Integer.parseInt(new String(preamble).split("::")[3].split(":")[2]);
@@ -176,6 +177,20 @@ class ConnectedThreadWithRequestCodes extends Thread {
 
                         case Constants.MESSAGE_IMAGE:
                             try {
+                                DecimalFormat df = new DecimalFormat("#.####");
+                                double incentive=0.0;
+                                if(new String(preamble).contains("incentive"))
+                                {
+                                    String splittedPreamble[]=new String(preamble).split("::");
+                                    for(int sI=0;sI<splittedPreamble.length;sI++)
+                                    {
+                                        if(splittedPreamble[sI].contains("incentive"))
+                                        {
+                                            incentive=Double.parseDouble(splittedPreamble[sI].split(":")[1]);
+                                            break;
+                                        }
+                                    }
+                                }
                                 Cursor testTBLRows=mydatabase.rawQuery("SELECT * from INCENT_UUID_MAC_TBL",null);
                                 Log.d("CTwRC","number of rows inside INCENT_UUID_MAC_TBL at the start of MES_IMAGE are:"+testTBLRows.getCount());
 
@@ -206,13 +221,27 @@ class ConnectedThreadWithRequestCodes extends Thread {
                                 dbFunctions.insertIntoMsgTblRemoteMsg(mydatabase,deviceNameReceived,macAddrReceived,tagsReceived,latitudeReceived,longitudeReceived,timestampReceived,android.provider.Settings.Secure.getString(context.getContentResolver(), "bluetooth_address"),BluetoothAdapter.getDefaultAdapter().getName(),mimeReceived,formatRecived,Environment.getExternalStorageDirectory().getAbsoluteFile()+"/"+fileNameImage,UUIDReceived,sizeReceived,qualityReceived,priorityReceived);
                                 new DbFunctions().insertIntoSentLogTBL(mydatabase,UUIDReceived,mmSocket.getRemoteDevice().getAddress(),1);
                                 //Give incentive if I am the destination
-                                double incentive=0.0;
-                                int amIDest=0;
-                                Cursor findUUIDInc=mydatabase.rawQuery("SELECT incentive from INCENT_UUID_MAC_TBL WHERE UUID='"+ UUIDReceived+"' and MacAd='"+mmSocket.getRemoteDevice().getAddress()+"'",null);
-                                Log.d("CTwRC","Number of rows for the current UUID"+UUIDReceived+" and mac address"+mmSocket.getRemoteDevice().getAddress()+" are:"+findUUIDInc.getCount());
-                                if(findUUIDInc.getCount()>0)
-                                    amIDest=1;
 
+                                int amIDest=0;
+                                Cursor findUUIDInc=mydatabase.rawQuery("SELECT incentive,flag from INCENT_UUID_MAC_TBL WHERE UUID='"+ UUIDReceived+"' and MacAd='"+mmSocket.getRemoteDevice().getAddress()+"'",null);
+                                Log.d("CTwRC","Number of rows for the current UUID"+UUIDReceived+" and mac address"+mmSocket.getRemoteDevice().getAddress()+" are:"+findUUIDInc.getCount());
+
+                                if(findUUIDInc.getCount()>0) {
+                                    while(findUUIDInc.moveToNext())
+                                    {
+                                        if(findUUIDInc.getInt(1)==1) {
+                                            amIDest = 0;// I am relay greater than thres
+                                            incentive=findUUIDInc.getDouble(0);
+                                        }
+                                        else {
+                                            amIDest = 1;// I am destination
+                                            incentive=findUUIDInc.getDouble(0);
+                                        }
+                                    }
+
+
+                                }
+                                else amIDest=2;// relay less than thres
                                  if(amIDest==1) {
 
                                      Log.d("CTwRC","I am destination for the message");
@@ -224,21 +253,43 @@ class ConnectedThreadWithRequestCodes extends Thread {
 
                                      //Delete from total incentives
                                     mydatabase.execSQL("UPDATE INCENTIVES_TBL SET incentive=incentive-" + incentive);
+                                     Log.d("CTwRC","Incentive before deletion in INCENTIVES_TBL:"+incentive);
+                                     mydatabase.execSQL("INSERT INTO LAST_FIVE_TRANS VALUES('"+mmSocket.getRemoteDevice().getAddress()+"','"+UUIDReceived+"',"+incentive+",0.0,(datetime('now','localtime')))");
+                                     new DbFunctions().deleteLeastRecent(mydatabase);
                                     //Update entry for a message
-                                    mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_FOR_MSG_TBL VALUES('" + UUIDReceived + "',0.0,0.0," + incentive+")");
+                                    mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_FOR_MSG_TBL VALUES('" + UUIDReceived + "',0.0,0.0," + Double.parseDouble(df.format(incentive))+")");
                                      mydatabase.execSQL("DELETE FROM INCENT_UUID_MAC_TBL where UUID='"+UUIDReceived+"'");
                                     //Himanshu Himanshu
                                     String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REW + "::" + UUIDReceived + "::" + incentive + "::";
                                     writePreamble(preambleString);
                                 }
+                                else if(amIDest==0)
+                                 {
+                                     //HimanshuToday-- Relay greater than threshold
+                                     Log.d("CTwRC","I am destination for the message");
+                                     //Find incentive value to pay
+                                     while(findUUIDInc.moveToNext())
+                                     {
+                                         incentive=findUUIDInc.getDouble(0);
+                                     }
+
+                                     //Delete from total incentives
+                                     mydatabase.execSQL("UPDATE INCENTIVES_TBL SET incentive=incentive-" + incentive);
+                                     mydatabase.execSQL("INSERT INTO LAST_FIVE_TRANS VALUES('"+mmSocket.getRemoteDevice().getAddress()+"','"+UUIDReceived+"',"+incentive+",0.0,(datetime('now','localtime')))");
+                                     new DbFunctions().deleteLeastRecent(mydatabase);
+                                     //Update entry for a message
+                                     mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_FOR_MSG_TBL VALUES('" + UUIDReceived +"',"+ Double.parseDouble(df.format(incentive*5.0))+",0.0," + Double.parseDouble(df.format(incentive))+")");
+                                     mydatabase.execSQL("DELETE FROM INCENT_UUID_MAC_TBL where UUID='"+UUIDReceived+"'");
+                                     //Himanshu Himanshu
+                                     String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REW + "::" + UUIDReceived + "::" + incentive + "::";
+                                     writePreamble(preambleString);
+                                 }
                                 else
                                 {
-                                    if(new String(preamble).split("::").length==15)
-                                    {
-                                        mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_FOR_MSG_TBL VALUES('" + UUIDReceived + "'"+incentive+",0.0,0.0" );
+                                        mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_FOR_MSG_TBL VALUES('" + UUIDReceived + "',"+Double.parseDouble(df.format(incentive))+",0.0,0.0)" );
                                         String preambleString="Preamble::MessageType:"+Constants.MESSAGE_IMAGE_ACK+"::"+UUIDReceived+"::";
                                         writePreamble(preambleString);
-                                    }
+
                                 }
                                 //imageCount++;
                                 //Log.d("CTwRC","Total number of images received:"+imageCount);
@@ -275,19 +326,46 @@ class ConnectedThreadWithRequestCodes extends Thread {
                             }
                             break;
                         case Constants.MESSAGE_INCENT_REW:
+                            DecimalFormat df=new DecimalFormat("#.####");
                             String UUID=new String(preamble).split("::")[2];
                             double inc=Double.parseDouble(new String(preamble).split("::")[3]);
                             Cursor cursorForMesInc=mydatabase.rawQuery("SELECT * from INCENT_FOR_MSG_TBL where UUID='"+UUID+"'",null);
                             if(cursorForMesInc.getCount()>0) {
-                                mydatabase.execSQL("UPDATE INCENT_FOR_MSG_TBL set received=received+" + inc + " where UUID='" + UUID + "'");
-                                mydatabase.execSQL("UPDATE INCENTIVES_TBL SET incentive=incentive+"+inc);
+                                mydatabase.execSQL("UPDATE INCENT_FOR_MSG_TBL set received=received+" + Double.parseDouble(df.format(inc)) + " where UUID='" + UUID + "'");
+                                mydatabase.execSQL("UPDATE INCENTIVES_TBL SET incentive=incentive+"+Double.parseDouble(df.format(inc)));
+                                mydatabase.execSQL("INSERT INTO LAST_FIVE_TRANS VALUES('"+mmSocket.getRemoteDevice().getAddress()+"','"+UUIDReceived+"',0.0,"+inc+",(datetime('now','localtime')))");
+                                new DbFunctions().deleteLeastRecent(mydatabase);
                             }
                             new DbFunctions().insertIntoSentLogTBL(mydatabase,UUID,mmSocket.getRemoteDevice().getAddress(),0);
-                        case Constants.MESSAGE_TSRS:
-                        {
+                            break;
+                        case Constants.MESSAGE_TSRS: {
                             byte remoteBytesRead[] = readBytes(MessageSize);
                             String remoteTSRs = new String(remoteBytesRead);
 
+                            String ratingString = new String(preamble).split("::")[4];
+
+                            if(!ratingString.equals("NO"))
+                            {
+                            String ratingStringAr[] = ratingString.split(",");
+                            for (String curString : ratingStringAr) {
+                                String MacAd = curString.split("--")[0];
+                                if (!MacAd.equals(android.provider.Settings.Secure.getString(context.getContentResolver(), "bluetooth_address"))) {
+                                    double rating = Double.parseDouble(curString.split("--")[1]);
+
+                                    Cursor noOfEntries = mydatabase.rawQuery("SELECT * from USER_RATING_MAP_TBL where MacAd='" + MacAd + "'", null);
+                                    if (noOfEntries.getCount() > 0) {
+                                        while (noOfEntries.moveToNext()) {
+                                            double ratingInTable = noOfEntries.getDouble(1);
+                                            rating = ratingInTable * 0.8 + rating * 0.2;
+                                        }
+                                        mydatabase.execSQL("UPDATE USER_RATING_MAP_TBL set rating=" + rating + " WHERE MacAd='" + MacAd + "'");
+                                    } else {
+                                        rating = 4 + rating * 0.2;
+                                        mydatabase.execSQL("INSERT INTO USER_RATING_MAP_TBL VALUES('" + MacAd + "'," + rating + ",'" + mmSocket.getRemoteDevice().getAddress() + "')");
+                                    }
+                                }
+                            }
+                        }
                             Log.d("CTwRC", "Remote TSRs received:" + remoteTSRs);
                             //Process received TSRs
                             new DbFunctions().saveRemoteTSRs(mydatabase, mmSocket.getRemoteDevice(), remoteTSRs);
@@ -314,7 +392,28 @@ class ConnectedThreadWithRequestCodes extends Thread {
 
                             Log.d("ConnectThread", "new TSRs are:" + TSRsToShare);
                             byte[] byteArrayTSRsToShare = TSRsToShare.getBytes();
-                            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TSRS_BACK + "::MessageSize:" + byteArrayTSRsToShare.length + "::Role:"+Role+"::";
+
+                            String ratingsDevices=new String();
+                            int countR=0;
+                            Cursor cursorForDeviceRatings=mydatabase.rawQuery("SELECT * from USER_RATING_MAP_TBL",null);
+                            int countDevice=cursorForDeviceRatings.getCount();
+                            if(countDevice==0)
+                                ratingsDevices="NO";
+                            while(cursorForDeviceRatings.moveToNext())
+                            {
+                                if(countR!=0) {
+                                    ratingsDevices+=",";
+                                }
+                                String MacAd = cursorForDeviceRatings.getString(0);
+                                double rating = cursorForDeviceRatings.getDouble(1);
+                                ratingsDevices += MacAd + "--" + rating;
+
+                                countR++;
+                            }
+
+                            Log.d("ConnectThread","ratingsDevices is:"+ratingsDevices);
+
+                            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TSRS_BACK + "::MessageSize:" + byteArrayTSRsToShare.length + "::Role:"+RoleSelf+"::"+ratingsDevices+"::";
                             Log.d("ConnectThread", "Preamble String is:" + preambleString);
                             Log.d("CTwRC","Sending TSRs back to"+mmSocket.getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
                             writePreamble(preambleString);
@@ -329,6 +428,31 @@ class ConnectedThreadWithRequestCodes extends Thread {
                             //Process received TSRs
                             new DbFunctions().saveRemoteTSRs(mydatabase, mmSocket.getRemoteDevice(), remoteTSRs);
 
+                            String ratingString=new String(preamble).split("::")[4];
+
+                            if(!ratingString.equals("NO")) {
+                                String ratingStringAr[] = ratingString.split(",");
+
+                                for (String curString : ratingStringAr) {
+                                    String MacAd = curString.split("--")[0];
+                                    if (!MacAd.equals(android.provider.Settings.Secure.getString(context.getContentResolver(), "bluetooth_address"))) {
+                                        double rating = Double.parseDouble(curString.split("--")[1]);
+
+                                        Cursor noOfEntries = mydatabase.rawQuery("SELECT * from USER_RATING_MAP_TBL where MacAd='" + MacAd + "'", null);
+                                        if (noOfEntries.getCount() > 0) {
+                                            while (noOfEntries.moveToNext()) {
+                                                double ratingInTable = noOfEntries.getDouble(1);
+                                                rating = ratingInTable * 0.8 + rating * 0.2;
+                                            }
+                                            mydatabase.execSQL("UPDATE USER_RATING_MAP_TBL set rating=" + rating + " WHERE MacAd='" + MacAd + "'");
+                                        } else {
+                                            rating = 4 + rating * 0.2;
+                                            mydatabase.execSQL("INSERT INTO USER_RATING_MAP_TBL VALUES('" + MacAd + "'," + rating + ",'" + mmSocket.getRemoteDevice().getAddress() + "')");
+                                        }
+                                    }
+                                }
+                            }
+
                             Cursor cursorForRole=mydatabase.rawQuery("SELECT Role from ROLE_TBL where MACAd='"+mmSocket.getRemoteDevice().getAddress()+"'",null);
                             if(cursorForRole.getCount()==0)
                             {
@@ -342,7 +466,7 @@ class ConnectedThreadWithRequestCodes extends Thread {
                             Cursor cursorForTSRShareDone=mydatabase.rawQuery("SELECT * from TSR_SHARE_DONE_TBL",null);
                             if(cursorForTSRShareDone.getCount()==0)
                             {
-                                postConnMTransfer1();
+                                postConnMTransfer();
                             }
                             //new DbFunctions().sendMessage(mydatabase,mmSocket.getRemoteDevice().getAddress(),mmSocket.getRemoteDevice().getName(),this,Constants.MESSAGE_IMAGE);
                         }
@@ -470,14 +594,65 @@ class ConnectedThreadWithRequestCodes extends Thread {
                         }
                         break;
                         case Constants.MESSAGE_INCENT_REQ:
+
+                            int flag=0;
+                            String sourceMac=new String(preamble).split("::")[4];
+                            //Reputation metric code here
+                            Cursor noOfEntries = mydatabase.rawQuery("SELECT * from USER_RATING_MAP_TBL where MacAd='" + sourceMac + "'", null);
+                            double rating=5.0;
+                            int flagForRatingPresent=0;
+                            double percentInc=1.0;
+                            if (noOfEntries.getCount() > 0) {
+                                flagForRatingPresent=1;
+                                while (noOfEntries.moveToNext()) {
+                                    rating=noOfEntries.getDouble(1);
+                                    if(rating>=4.0)
+                                        percentInc=1;
+                                    else if(rating>=3.0 && rating<4.0)
+                                        percentInc=0.75;
+                                    else if(rating>=2.0 && rating<3.0)
+                                        percentInc=0.50;
+                                    else {
+                                        percentInc=0.0;
+                                        flag=0;
+                                        }
+                                }
+
+                            }
+                            //Reputation metric code done
+
                             double incentivePresent=0;
                             double incentiveRequired=Double.parseDouble(new String(preamble).split("::")[2].split(":")[1]);
                             UUID=new String(preamble).split("::")[3];
                             String addedTags="";
-                            if(new String(preamble).split("::").length>5)
-                            addedTags=new String(preamble).split("::")[4];
-                            if(addedTags!=null && addedTags.length()>0)
-                                incentiveRequired=incentiveRequired+1;
+                            double incentDest = 0.0;
+                            if(new String(preamble).contains("addedTags")) {
+                                addedTags = new String(preamble).split("::")[4].split(":")[1];
+
+                                if (addedTags != null && addedTags.length() > 0) {
+                                    String addedTagsSplit[] = addedTags.split(",");
+                                    Cursor selfTags;
+
+                                    for (int adI = 0; adI < addedTagsSplit.length; adI++) {
+                                        selfTags = mydatabase.rawQuery("SELECT belongs_to from TSR_TBL where SI='" + addedTagsSplit[adI] + "' and belongs_to='SELF'", null);
+                                        while (selfTags.moveToNext()) {
+                                            String belongs_to = selfTags.getString(0);
+                                            if (belongs_to.equals("SELF")) {
+                                                incentDest += 0.2;
+                                            }
+                                        }
+                                    }
+
+                                }
+
+                                incentDest = Math.min(incentDest, 1);
+                                Log.d("CTwRC","incentDest value is:"+incentDest);
+
+                            }
+                            incentiveRequired=incentiveRequired*percentInc+incentDest;
+                            Log.d("CTwRC","incentRequired value is:"+incentDest);
+                                //incentiveRequired=incentiveRequired+1;
+
                             Cursor cursorIncent=mydatabase.rawQuery("SELECT incentive from INCENTIVES_TBL",null);
                             double sumIncents=0.0;
                             while(cursorIncent.moveToNext())
@@ -488,22 +663,37 @@ class ConnectedThreadWithRequestCodes extends Thread {
                                 {
                                     sumIncents=cursorForReqsCurIt.getDouble(0);
                                 }
-                                mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_UUID_MAC_TBL VALUES('"+mmSocket.getRemoteDevice().getAddress()+"','"+UUID+"',"+incentiveRequired+")");
+                                int flagRec=0;
+                                if(new String(preamble).contains("flag"))
+                                {
+                                    flagRec=Integer.parseInt(new String(preamble).split("::")[4].split(":")[1]);
+                                }
+                                Log.d("CTwRC","The value of incentiveRequired being inserted into INCENT_UUID_MAC_TBL is:"+incentiveRequired);
+                                if(flagRec==1)
+                                mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_UUID_MAC_TBL VALUES('"+mmSocket.getRemoteDevice().getAddress()+"','"+UUID+"',"+incentiveRequired+",1)");
+                                else
+                                    mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_UUID_MAC_TBL VALUES('"+mmSocket.getRemoteDevice().getAddress()+"','"+UUID+"',"+incentiveRequired+",0)");
                             }
 
-                            int flag=0;
+
 
                             Log.d("CTwRC","IncentivePrsent, sum Incents and incentiveRequired are:"+incentivePresent+","+sumIncents+","+incentiveRequired);
                             if((incentivePresent-sumIncents-incentiveRequired)>=0)
                                 flag=1;
                             else flag=0;
 
-                            Cursor testTBLRows=mydatabase.rawQuery("SELECT * from INCENT_UUID_MAC_TBL",null);
-                            Log.d("CTwRC","number of rows inside INCENT_UUID_MAC_TBL at the end of INCENT_REQ are:"+testTBLRows.getCount());
-                            String preambleString="Preamble::MessageType:" + Constants.MESSAGE_INCENT_REP+"::flag:"+flag+"::"+UUID+"::";
-                            Log.d("CTwRC","Length of preamble string is:"+preambleString.getBytes().length);
-                            Log.d("CTwRC","Writing preamble inside INC_REQ as:"+preambleString);
-                            writePreamble(preambleString);
+                            if(percentInc==0)
+                                flag=0;
+
+
+                            if(flag==1) {
+                                Cursor testTBLRows = mydatabase.rawQuery("SELECT * from INCENT_UUID_MAC_TBL", null);
+                                Log.d("CTwRC", "number of rows inside INCENT_UUID_MAC_TBL at the end of INCENT_REQ are:" + testTBLRows.getCount());
+                                String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REP + "::flag:" + flag + "::" + UUID + "::"+incentiveRequired+"::";
+                                Log.d("CTwRC", "Length of preamble string is:" + preambleString.getBytes().length);
+                                Log.d("CTwRC", "Writing preamble inside INC_REQ as:" + preambleString);
+                                writePreamble(preambleString);
+                            }
                                 break;
                         case Constants.MESSAGE_INCENT_REP:
                             int flagRep=0;
@@ -604,7 +794,7 @@ class ConnectedThreadWithRequestCodes extends Thread {
     public void cancel() {
         try {
             mmSocket.close();
-            mydatabase.close();
+            //mydatabase.close();
         } catch (IOException e) { }
     }
 
@@ -658,6 +848,7 @@ class ConnectedThreadWithRequestCodes extends Thread {
 
             Log.d("DbFunctions", "Imagepath current is:" + imagePath);
             String latitude = cursorForMatchingImage.getString(1);
+
             String longitude = cursorForMatchingImage.getString(2);
             String timestamp = cursorForMatchingImage.getString(3);
             String tagsForCurrentImage = cursorForMatchingImage.getString(4);
@@ -691,7 +882,7 @@ class ConnectedThreadWithRequestCodes extends Thread {
                     mime + "::" + format + "::" + localMacAddr + "::" + localName + "::" + UUIDRep + "::" + size + "::" + quality + "::" + priority + "::";
             if(isTherePromise==1)
             {
-                 preambleString+=incentive+"::";
+                 preambleString+="incentive:"+incentive+"::";
             }
 
             //Log.d("CTwRC", "Sending image" + imagePath + "with tags" + tagsForCurrentImage + "to " + remoteName + "--haha  :");
@@ -719,12 +910,14 @@ class ConnectedThreadWithRequestCodes extends Thread {
             Role=cursorForRole.getInt(0);
         }
         //Map of messages to be sent
-        class MesParams  implements Comparable<MesParams>{
+        class MesParams  extends Object implements Comparable<MesParams>{
             String UUID;
+            String sourceMac;
             long size,quality,priority;
             double sumWeightsRemote;
             double incentive;
             String remoteMAC;
+            double avgWeight=0.0; // To save the average remote weight of all the tags for the message
             int flagForDest;//0 for relay and 1 for dest
 
             public int compareTo(MesParams o) {
@@ -768,6 +961,7 @@ class ConnectedThreadWithRequestCodes extends Thread {
                 //Iterate through all the messages for the device and tag combo
                 while (cursorForMatchingImage.moveToNext()) {///For every message
 
+                    String sourceForMessage=cursorForMatchingImage.getString(8);
                     String tagsForCurrentImage = cursorForMatchingImage.getString(4);
                     String UUID = cursorForMatchingImage.getString(10);
                     Log.d("ConnectThread", "postConnMT::Message considered for transfer:" + UUID);
@@ -779,320 +973,7 @@ class ConnectedThreadWithRequestCodes extends Thread {
                     int priority = cursorForMatchingImage.getInt(priorityIndex);
                     MesParams mesParams = new MesParams();
                     mesParams.remoteMAC = remoteMAC;
-                    mesParams.UUID = UUID;
-                    mesParams.quality = quality;
-                    mesParams.priority = priority;
-                    //See if this message has been exchanged before between the two devices
-                    Cursor ifSentOrReceived = mydatabase.rawQuery("SELECT * from SENT_IMAGE_LOG where UUID='" + cursorForMatchingImage.getString(10) + "' and (sentTo='" + remoteMAC + "' OR receivedFrom='" + remoteMAC + "')", null);
-                    if (ifSentOrReceived.getCount() > 0) {
-                        //Condition that this message has been exchanged before
-                        if (!listUUIDSentOrReceived.contains(cursorForMatchingImage.getString(10))) {
-                            listUUIDSentOrReceived.add(cursorForMatchingImage.getString(10));
-                            Log.d("DbFunctions", "Image already sent or received:" + ifSentOrReceived.getString(0) + "---" + ifSentOrReceived.getString(1) + "---" + ifSentOrReceived.getString(2));
-                        }
-                    } else
-                    {
-                    if (sizeMax > size)
-                        sizeMax = size;
-                    if (quality > qualityMax)
-                        qualityMax = quality;
-
-                    int flagExists = 0;
-                    if (belongs_to.equals("SELF")) {
-
-
-                        for (MesParams tempMesParams : listMessages) {
-                            if (tempMesParams.UUID.equals(mesParams.UUID) && tempMesParams.remoteMAC.equals(mesParams.UUID)) {
-                                tempMesParams.flagForDest = 1;
-                                mesParams.flagForDest = 1;
-                                flagExists = 1;
-                            }
-                        }
-                        if (flagExists == 0) {
-                            listMessages.add(mesParams);
-                            mesParams.flagForDest = 1;
-                        }
-
-                    }
-                    if (listOfUUIDsChecked.contains(UUID))
-                        continue;
-                    else {
-                        listOfUUIDsChecked.add(UUID);
-                    }
-
-                    String tagsForCurrentImageArray[] = tagsForCurrentImage.split(",");
-                    //Find local and sum for all the messages
-                    for (int i = 0; i < tagsForCurrentImageArray.length; i++) {
-                        if (tagsForCurrentImageArray[i].length() > 0) {
-                            Cursor cursorForTagsWeight = mydatabase.rawQuery("SELECT weight from TSR_TBL where SI='" + tagsForCurrentImageArray[i] + "'", null);
-                            if (cursorForTagsWeight.moveToFirst()) {
-                                double tempWeight = cursorForTagsWeight.getDouble(0);
-                                localSum += tempWeight;
-                            }
-
-                            /////comment-Doug, get a node identifier for TSR_REMOTE
-                            Cursor cursorForTagsWeightRemote = mydatabase.rawQuery("SELECT weight from TSR_REMOTE_TBL where SI='" + tagsForCurrentImageArray[i] + "' and deviceMacAddr='" + remoteMAC + "'", null);
-                            if (cursorForTagsWeightRemote.moveToFirst()) {
-                                double tempWeight = cursorForTagsWeightRemote.getDouble(0);
-                                remoteSum += tempWeight;
-                            }
-
-                        }
-                    }
-                    mesParams.sumWeightsRemote = remoteSum;
-                    if (remoteSum > remoteSumMax) {
-                        remoteSumMax = remoteSum;
-                    }
-                    Log.d("DbFunctions", "localSum and remoteSum for the current message is:" + localSum + "--" + remoteSum);
-                    double differenceInSums = remoteSum - localSum;
-                    /////come here
-                    hm.put(UUID, differenceInSums);
-                    {
-                        Log.d("CTwRC", "message has not been transferred before and value of belongs_to is:" + belongs_to);
-
-                        //condition that this message has not been exchanged before
-
-                        if (belongs_to.equals("SELF")) {
-
-                            Log.d("ConnectThread", mesParams.UUID + " is added to dest list");
-                            ArrayList destList = new ArrayList<MesParams>();
-                            if (MACtoMessageDest.get(remoteMAC) != null) {
-                                destList = MACtoMessageDest.get(remoteMAC);
-                            }
-                            mesParams.flagForDest = 1;
-                            flagExists = 0;
-                            for (MesParams tempMesParams : listMessages) {
-                                if (tempMesParams.UUID.equals(mesParams.UUID) && tempMesParams.remoteMAC.equals(mesParams.UUID)) {
-                                    tempMesParams.flagForDest = 1;
-                                    mesParams.flagForDest = 1;
-                                    flagExists = 1;
-                                }
-                            }
-                            if (flagExists == 0) {
-                                listMessages.add(mesParams);
-                                mesParams.flagForDest = 1;
-                            }
-                            listMessages.add(mesParams);
-                        } else if (hm.get(UUID) >= 0) {
-                            mesParams.flagForDest = 0;
-
-                            flagExists = 0;
-                            for (MesParams tempMesParams : listMessages) {
-                                if (tempMesParams.UUID.equals(mesParams.UUID) && tempMesParams.remoteMAC.equals(mesParams.UUID)) {
-                                    flagExists = 1;
-                                }
-                            }
-                            if (flagExists == 0) {
-                                mesParams.flagForDest = 0;
-                                listMessages.add(mesParams);
-
-                            }
-                            listMessages.add(mesParams);
-
-
-                        }
-                    }
-                }
-                }//For every message
-            }
-        } ///List of all the messages to be transferred formed-- two maps from mac to message for dest and relay
-
-        //Calculate incentives now
-
-        /*Himanshu-- Role based messages */
-
-        //Cursor cursorForRoleMessages=mydatabase.rawQuery("SELECT * from MESSAGE_TBL where ",null);
-        /*Role*/
-
-        //Variables to store size of each message
-        //Iterate through dest hashmap to find max size
-        it = MACtoMessageDest.entrySet().iterator();
-
-        HashMap<String,MesParams> UUIDtoParams=new HashMap<String,MesParams>();
-        ArrayList<MesParams> allMessages=new ArrayList<MesParams>();
-
-        //Two arrays for descending order arrangement
-        MesParams[] destMs,relayMs; int destMsC=0;int relayMsC=0;
-
-        //Calculate incentive for all messages
-
-        Log.d("CTwRC","Total messages are:"+listMessages.size());
-        for(MesParams mesParams:listMessages)
-        {
-            Log.d("CTwRC","UUID:"+mesParams.UUID+"sumRemoteWeights:"+mesParams.sumWeightsRemote+", Size:"+mesParams.size+", Quality:"+mesParams.quality+",Role:"+Role+",Priority:"+mesParams.priority+",SizeMax:"+sizeMax+",QualityMax:"+qualityMax+",remoteSumMax:"+remoteSumMax);
-            mesParams.incentive=3*mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
-            //Without size consideration
-            Random r = new Random();
-            double randomValue = 2.0 + (2.0 - 0.47) * r.nextDouble();
-            mesParams.incentive=5*mesParams.sumWeightsRemote*mesParams.quality/(Role*mesParams.priority*qualityMax*remoteSumMax);
-            mesParams.incentive=2;
-            //mesParams.incentive=3*randomValue;
-            Log.d("CTwRC","Incentive for message "+mesParams.UUID+" is "+mesParams.incentive);
-            if(mesParams.flagForDest==1)
-                destMsC++;
-            else
-                relayMsC++;
-        }
-        destMs=new MesParams[destMsC];
-        relayMs=new MesParams[relayMsC];
-
-        int destIn=0;int relayIn=0;
-        for(MesParams tempMesParams:listMessages)
-        {
-            if(tempMesParams.flagForDest==1) {
-                destMs[destIn]=new MesParams();
-                destMs[destIn++] = tempMesParams;
-
-            }
-            else if(tempMesParams.flagForDest==0){
-                relayMs[relayIn]=new MesParams();
-                relayMs[relayIn++]=tempMesParams;
-            }
-        }
-        //Arrange in descending order of incentive
-        Arrays.sort(destMs);
-        Arrays.sort(relayMs);
-
-       /* while(it.hasNext())
-        {
-            Map.Entry pair = (Map.Entry) it.next();
-            MesParams mesParams=(MesParams) pair.getValue();
-            mesParams.incentive=mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
-            if(!allMessages.contains(mesParams))
-            {
-                allMessages.add(mesParams);
-            }
-        }
-
-        //Iterate through relay hashmap to find max size
-        it = MACtoMessageRelay.entrySet().iterator();
-        while(it.hasNext())
-        {
-            Map.Entry pair = (Map.Entry) it.next();
-            MesParams mesParams=(MesParams) pair.getValue();
-            mesParams.incentive=mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
-        }*/
-        //Sending to destinations--temporary
-
-
-        /*
-        Log.d("ConnectThread","listMessages.size():"+listMessages.size());
-        for(MesParams tempMesParams:listMessages)
-        {
-
-            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ+"::IncentiveRequired:"+tempMesParams.incentive+"::"+tempMesParams.UUID+"::";
-            Log.d("ConnectThread", "Preamble String is:" + preambleString);
-            ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(tempMesParams.remoteMAC), context);
-            //Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
-            Log.d("ConnectThread","asking for incentive from :"+tempMesParams.remoteMAC);
-            newConnectedThread.writePreamble(preambleString);
-        }
-        */
-        Log.d("CTwRC","Values of destMsC and relayMsC are:"+destMsC+"::"+relayMsC);
-        if(destMsC!=0) {
-            for (int i = destMsC - 1; i >= 0; i--) {
-                String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ + "::IncentiveRequired:" + destMs[i].incentive + "::" + destMs[i].UUID + "::";
-                Log.d("ConnectThread", "Preamble String is:" + preambleString);
-                ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(destMs[i].remoteMAC), context);
-                //Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
-                Log.d("ConnectThread", "asking for incentive from :" + destMs[i].remoteMAC);
-                newConnectedThread.writePreamble(preambleString);
-
-            }
-        }
-        else{
-            Log.d("CTwRC","No messages for destination and value of destMsC and relayMsC are:"+destMsC+"::"+relayMsC);
-        }
-
-        //Sending to relays
-/*
-        if(relayMsC!=0)
-        {
-        for(int i=relayMsC-1;i>0;i++) {
-            ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(relayMs[i].remoteMAC), context);
-            newConnectedThread.sendMessage(relayMs[i].UUID, 1, relayMs[i].incentive);
-
-        }
-        }
-*/
-
-
-
-    }
-
-
-
-    public void postConnMTransfer1()
-    {
-        Log.d("ConnectThread","postConnMTransfer fc called");
-        int Role=1;
-        Cursor cursorForRole=mydatabase.rawQuery("SELECT Role from ROLE_TBL where MACAd='SELF'",null);
-        while(cursorForRole.moveToNext())
-        {
-            Role=cursorForRole.getInt(0);
-        }
-        //Map of messages to be sent
-        class MesParams  implements Comparable<MesParams>{
-            String UUID;
-            long size,quality,priority;
-            double sumWeightsRemote;
-            double incentive;
-            String remoteMAC;
-            int flagForDest;//0 for relay and 1 for dest
-
-            public int compareTo(MesParams o) {
-                return new Double(this.incentive).compareTo(new Double(o.incentive));
-            }
-        }
-        ArrayList<MesParams> listMessages=new ArrayList<MesParams>();
-
-        long sizeMax=-90,qualityMax=-90;
-        double remoteSumMax=-0.9;
-        Map<String,ArrayList<MesParams>> MACtoMessageRelay=new HashMap<String, ArrayList<MesParams>>();
-        Map<String,ArrayList<MesParams>> MACtoMessageDest=new HashMap<String,ArrayList<MesParams>>();
-        Iterator it = Constants.deviceToSocket.entrySet().iterator();
-        Log.d("ConnectThread","postConn::Number of mappings in hashmaps are:"+Constants.deviceToSocket.size());
-        //Iterate through all the connected devices
-        while (it.hasNext()) {
-            Map.Entry pair = (Map.Entry) it.next();
-            //Take one device at a time
-            String remoteMAC=((String)pair.getKey());
-            //To check the condition that a message is not being checked again
-            ArrayList<String> listOfUUIDsChecked=new ArrayList<String>();
-            //To check the condition that a message to be transferred is not sent twice
-            ArrayList<String> listOfImages=new ArrayList<String>();
-            //To store device to difference in sum mappings
-            HashMap<String, Double> hm = new HashMap<String, Double>();
-            //Find messages for a particular device with local sum less than remote and haven't been previously exchanged with the device
-            Cursor cursorForRemoteTSR=mydatabase.rawQuery("SELECT * from TSR_REMOTE_TBL where deviceMacAddr='"+remoteMAC+"'",null);
-
-            Cursor cursorForMatchingImage;
-            ArrayList<String> listUUIDSentOrReceived = new ArrayList<String>();
-
-            while(cursorForRemoteTSR.moveToNext()) {
-
-                String belongs_to=cursorForRemoteTSR.getString(4);
-                //Find all the messages for the particular tag and device
-                Log.d("ConnectThread","postConnMT: TSR and belongs_to in check is:"+cursorForRemoteTSR.getString(1)+" and "+belongs_to);
-                cursorForMatchingImage = mydatabase.rawQuery("SELECT * from MESSAGE_TBL  where tagsForCurrentImage like '%" + cursorForRemoteTSR.getString(1) + "%'", null);
-
-                double localSum=0.0,remoteSum=0.0;
-
-                //Iterate through all the messages for the device and tag combo
-                while (cursorForMatchingImage.moveToNext()) {///For every message
-
-                    String tagsForCurrentImage = cursorForMatchingImage.getString(4);
-                    String UUID = cursorForMatchingImage.getString(10);
-                    Log.d("ConnectThread", "postConnMT::Message considered for transfer:" + UUID);
-                    int sizeIndex = cursorForMatchingImage.getColumnIndex("size");
-                    int qualityIndex = cursorForMatchingImage.getColumnIndex("quality");
-                    int priorityIndex = cursorForMatchingImage.getColumnIndex("priority");
-                    long size = cursorForMatchingImage.getLong(sizeIndex);
-                    long quality = cursorForMatchingImage.getLong(qualityIndex);
-                    int priority = cursorForMatchingImage.getInt(priorityIndex);
-                    MesParams mesParams = new MesParams();
-                    mesParams.remoteMAC = remoteMAC;
-                    mesParams.UUID = UUID;
+                    mesParams.UUID = UUID;mesParams.sourceMac=sourceForMessage;
                     mesParams.quality = quality;
                     mesParams.priority = priority;
                     //See if this message has been exchanged before between the two devices
@@ -1109,8 +990,10 @@ class ConnectedThreadWithRequestCodes extends Thread {
                         int flagExists = 0;
                         for (MesParams tempMesParams : listMessages) {
                             if (tempMesParams.UUID.equals(mesParams.UUID) && tempMesParams.remoteMAC.equals(mesParams.remoteMAC)) {
-                                tempMesParams.flagForDest = 1;
-                                mesParams.flagForDest = 1;
+                                if(belongs_to.equals("SELF")) {
+                                    tempMesParams.flagForDest = 1;
+                                    mesParams.flagForDest = 1;
+                                }
                                 flagExists = 1;
                                 break;
                             }
@@ -1133,9 +1016,12 @@ class ConnectedThreadWithRequestCodes extends Thread {
                             if (belongs_to.equals("SELF")) {
                                 mesParams.flagForDest=1;
                                 listMessages.add(mesParams);
+                                if (quality > qualityMax)
+                                    qualityMax = quality;
                             }
                             else
                             {
+                                mesParams.flagForDest=0;
                                 String tagsForCurrentImageArray[] = tagsForCurrentImage.split(",");
                                 //Find local and sum for all the messages
                                 for (int i = 0; i < tagsForCurrentImageArray.length; i++) {
@@ -1156,12 +1042,13 @@ class ConnectedThreadWithRequestCodes extends Thread {
                                             double tempWeight = cursorForTagsWeightRemote.getDouble(0);
                                             remoteSum += tempWeight;
                                         }
+
                                         if(cursorForTagsWeightRemote!=null)
                                             cursorForTagsWeightRemote.close();
-
                                     }
                                 }
                                 mesParams.sumWeightsRemote = remoteSum;
+                                mesParams.avgWeight=remoteSum/tagsForCurrentImageArray.length;
                                 if (remoteSum > remoteSumMax) {
                                     remoteSumMax = remoteSum;
                                 }
@@ -1197,20 +1084,28 @@ class ConnectedThreadWithRequestCodes extends Thread {
 
         //Cursor cursorForRoleMessages=mydatabase.rawQuery("SELECT * from MESSAGE_TBL where ",null);
         //Two arrays for descending order arrangement
-        MesParams[] destMs,relayMs; int destMsC=0;int relayMsC=0;
+        MesParams[] destMs,relayMsGtThres,relayMsLtThres; int destMsC=0;int relayMsC=0;
 
         //Calculate incentive for all messages
 
         Log.d("CTwRC","Total messages are:"+listMessages.size());
         for(MesParams mesParams:listMessages)
         {
+
             Log.d("CTwRC","UUID:"+mesParams.UUID+"sumRemoteWeights:"+mesParams.sumWeightsRemote+", Size:"+mesParams.size+", Quality:"+mesParams.quality+",Role:"+Role+",Priority:"+mesParams.priority+",SizeMax:"+sizeMax+",QualityMax:"+qualityMax+",remoteSumMax:"+remoteSumMax);
-            mesParams.incentive=3*mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
+            //mesParams.incentive=3*mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
+            double incentMax=2.0;
+            Log.d("CTwRC","Value of 1/2*(mesParams.quality/(qualityMax*1.0)) is"+0.5*((mesParams.quality*1.0)/(qualityMax*1.0)));
+            Log.d("CTwRC","Value of 1/2*(mesParams.sumWeightsRemote/(Role*mesParams.priority*remoteSumMax*1.0)) is"+1/2*(mesParams.sumWeightsRemote/(Role*mesParams.priority*remoteSumMax*1.0)));
+            Log.d("CTwRC","Value of IncentMax:"+incentMax);
+            mesParams.incentive=(0.5*((mesParams.quality*1.0)/(qualityMax*1.0))+0.5*((mesParams.sumWeightsRemote*1.0)/(Role*mesParams.priority*remoteSumMax*1.0)))*incentMax;
+            Log.d("CTwRC","MesParams.incentive value is:"+mesParams.incentive);
+            //(¼*(S/ Smax +Q/ Qmax)+ ½*(Pv/ (Ru * Pu)))* Imax
             //Without size consideration
-            Random r = new Random();
+           /* Random r = new Random();
             double randomValue = 2.0 + (2.0 - 0.47) * r.nextDouble();
             mesParams.incentive=5*mesParams.sumWeightsRemote*mesParams.quality/(Role*mesParams.priority*qualityMax*remoteSumMax);
-            mesParams.incentive=2;
+            mesParams.incentive=2;*/
             //mesParams.incentive=3*randomValue;
             Log.d("CTwRC","Incentive for message "+mesParams.UUID+" is "+mesParams.incentive);
             if(mesParams.flagForDest==1)
@@ -1219,60 +1114,65 @@ class ConnectedThreadWithRequestCodes extends Thread {
                 relayMsC++;
         }
         destMs=new MesParams[destMsC];
-        relayMs=new MesParams[relayMsC];
 
+        ArrayList<MesParams> relayGreaterThanThres=new ArrayList<MesParams>();
+        ArrayList<MesParams> relayLessThanThres=new ArrayList<MesParams>();
         int destIn=0;int relayIn=0;
         for(MesParams tempMesParams:listMessages)
         {
+            double incentPromised=0.0;
+
             if(tempMesParams.flagForDest==1) {
+                //Check if the device transferring the message is itself a relay, if it is a relay, update incentive
+                Cursor incentPaidZeroOrNot=mydatabase.rawQuery("SELECT promised from INCENT_FOR_MSG_TBL where UUID='"+tempMesParams.UUID+"'",null);
+                while(incentPaidZeroOrNot.moveToNext())
+                {
+                    incentPromised=incentPaidZeroOrNot.getDouble(0);
+                }
+                if(!(incentPromised==0.0))
+                {
+                    tempMesParams.incentive=incentPromised;
+                    Log.d("CTwRC","Promised incentive is:"+tempMesParams.incentive);
+                }
+                Random r = new Random();
+                double randomValue = 0.11 + (0.31 - 0.11) * r.nextDouble();
+                Log.d("CTwRC","Value of radomValue is:"+randomValue);
+                tempMesParams.incentive=tempMesParams.incentive+randomValue;
+                tempMesParams.incentive=Math.min(tempMesParams.incentive,2.0);
+                Cursor cursorForRSSI=mydatabase.rawQuery("SELECT RSSI from BLUETOOTH_DEVICES_IN_RANGE WHERE BTDeviceMacAddr='"+tempMesParams.remoteMAC+"'",null);
+                double RSSI=0.0;
+                while(cursorForRSSI.moveToNext())
+                {
+                    RSSI=cursorForRSSI.getDouble(0);
+                }
+
+                double txP=Math.pow(10.0,RSSI/10.0);
+                Log.d("","txP value is:");
+                double incentBattery=txP/Math.pow(10.0,100/10.0)*(2.0/3);
+                Log.d("CTwRC","Incentive due to battery is:"+incentBattery);
+                Log.d("CTwRC","Final incentive value not yet assigned though is:"+Math.min(incentBattery+tempMesParams.incentive,2.0));
                 destMs[destIn]=new MesParams();
                 destMs[destIn++] = tempMesParams;
-
             }
             else if(tempMesParams.flagForDest==0){
-                relayMs[relayIn]=new MesParams();
-                relayMs[relayIn++]=tempMesParams;
+                if(tempMesParams.avgWeight>=0.8)
+                {
+                    relayGreaterThanThres.add(tempMesParams);
+                }
+                else {
+                    relayLessThanThres.add(tempMesParams);
+                }
             }
         }
+
+        relayMsGtThres=relayGreaterThanThres.toArray(new MesParams[relayGreaterThanThres.size()]);
+        relayMsLtThres=relayLessThanThres.toArray(new MesParams[relayLessThanThres.size()]);
         //Arrange in descending order of incentive
         Arrays.sort(destMs);
-        Arrays.sort(relayMs);
-
-       /* while(it.hasNext())
-        {
-            Map.Entry pair = (Map.Entry) it.next();
-            MesParams mesParams=(MesParams) pair.getValue();
-            mesParams.incentive=mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
-            if(!allMessages.contains(mesParams))
-            {
-                allMessages.add(mesParams);
-            }
-        }
-
-        //Iterate through relay hashmap to find max size
-        it = MACtoMessageRelay.entrySet().iterator();
-        while(it.hasNext())
-        {
-            Map.Entry pair = (Map.Entry) it.next();
-            MesParams mesParams=(MesParams) pair.getValue();
-            mesParams.incentive=mesParams.sumWeightsRemote*mesParams.size*mesParams.quality/(Role*mesParams.priority*sizeMax*qualityMax*remoteSumMax);
-        }*/
-        //Sending to destinations--temporary
+        Arrays.sort(relayMsGtThres);
+        Arrays.sort(relayMsLtThres);
 
 
-        /*
-        Log.d("ConnectThread","listMessages.size():"+listMessages.size());
-        for(MesParams tempMesParams:listMessages)
-        {
-
-            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ+"::IncentiveRequired:"+tempMesParams.incentive+"::"+tempMesParams.UUID+"::";
-            Log.d("ConnectThread", "Preamble String is:" + preambleString);
-            ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(tempMesParams.remoteMAC), context);
-            //Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
-            Log.d("ConnectThread","asking for incentive from :"+tempMesParams.remoteMAC);
-            newConnectedThread.writePreamble(preambleString);
-        }
-        */
         Log.d("CTwRC","Values of destMsC and relayMsC are:"+destMsC+"::"+relayMsC);
         if(destMsC!=0) {
             for (int i = destMsC - 1; i >= 0; i--) {
@@ -1284,9 +1184,9 @@ class ConnectedThreadWithRequestCodes extends Thread {
                 }
                 String preambleString=new String();
                 if(addedTags.equals(""))
-                    preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ + "::IncentiveRequired:" + destMs[i].incentive + "::" + destMs[i].UUID + "::";
+                    preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ + "::IncentiveRequired:" + destMs[i].incentive + "::" + destMs[i].UUID + "::"+destMs[i].sourceMac+"::";
                 else
-                    preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ + "::IncentiveRequired:" + destMs[i].incentive + "::" + destMs[i].UUID + "::"+addedTags+"::";
+                    preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ + "::IncentiveRequired:" + destMs[i].incentive + "::" + destMs[i].UUID + "::"+"addedTags:"+addedTags+"::";
                 Log.d("ConnectThread", "Preamble String is:" + preambleString);
                 ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(destMs[i].remoteMAC), context);
                 //Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
@@ -1300,16 +1200,32 @@ class ConnectedThreadWithRequestCodes extends Thread {
         }
 
         //Sending to relays
-/*
-        if(relayMsC!=0)
+        String preambleString="";
+        Log.d("CTwRC","Size of relayMsGtThres is:"+relayMsGtThres.length);
+        if(relayMsGtThres!=null && relayMsGtThres.length!=0)
         {
-        for(int i=relayMsC-1;i>0;i++) {
-            ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(relayMs[i].remoteMAC), context);
-            newConnectedThread.sendMessage(relayMs[i].UUID, 1, relayMs[i].incentive);
+            for(int i=relayMsGtThres.length-1;i>=0;i--) {
+                //Log.d("","Test incentive value is:"+relayMsGtThres[i].incentive);
+                preambleString = "Preamble::MessageType:" + Constants.MESSAGE_INCENT_REQ + "::IncentiveRequired:" + relayMsGtThres[i].incentive*0.2 + "::" + relayMsGtThres[i].UUID + "::flag:1::";
+
+                ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) Constants.deviceToSocket.get(relayMsGtThres[i].remoteMAC), context);
+                //Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
+                Log.d("ConnectThread", "asking for incentive from :" + relayMsGtThres[i].remoteMAC);
+                newConnectedThread.writePreamble(preambleString);
+
+            }
+        }
+        Log.d("CTwRC","Size of arraylist relayLessThanThres is:"+relayLessThanThres.size());
+        Log.d("CTwRC","Size of array relayMsLtThres is:"+relayMsLtThres.length);
+        if(relayMsLtThres!=null && relayMsLtThres.length!=0)
+        {
+        for(int i=relayMsLtThres.length-1;i>=0;i--) {
+            ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes(Constants.deviceToSocket.get(relayMsLtThres[i].remoteMAC), context);
+            newConnectedThread.sendMessage(relayMsLtThres[i].UUID, 1, relayMsLtThres[i].incentive);
 
         }
         }
-*/
+
 
 
 
