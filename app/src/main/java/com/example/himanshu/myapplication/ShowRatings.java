@@ -18,8 +18,8 @@ public class ShowRatings extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_show_ratings);
-        final SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
-        Cursor cursorForRatings=mydatabase.rawQuery("SELECT * from USER_RATING_MAP_TBL",null);
+        //final SQLiteDatabase ConstantsClass.mydatabaseLatest = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
+        Cursor cursorForRatings=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from USER_RATING_MAP_TBL",null);
         ArrayList<String> RatingStrings=new ArrayList<>();
         final ListView lv=(ListView)findViewById(R.id.RatingsList);
         while(cursorForRatings.moveToNext())

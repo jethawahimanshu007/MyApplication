@@ -27,7 +27,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class Neighbors extends AppCompatActivity {
-    SQLiteDatabase mydatabase;
+    //SQLiteDatabase ConstantsClass.mydatabaseLatest;
     Map<BluetoothDevice,BluetoothSocket> deviceToSocket = new HashMap<BluetoothDevice,BluetoothSocket>();
     ArrayList al = new ArrayList();
     public  BluetoothDevice mmDevice;
@@ -39,8 +39,8 @@ public class Neighbors extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_neighbors);
-        mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
-       // generalBTFuncs=new GeneralBTFuncs(getApplicationContext(),android.R.layout.simple_list_item_1,this,mydatabase);
+       // ConstantsClass.mydatabaseLatest = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
+       // generalBTFuncs=new GeneralBTFuncs(getApplicationContext(),android.R.layout.simple_list_item_1,this,ConstantsClass.mydatabaseLatest);
        // generalBTFuncs.run();
 
 

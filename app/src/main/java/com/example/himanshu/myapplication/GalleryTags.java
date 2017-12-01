@@ -44,11 +44,12 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.HashSet;
 
+//The functioning of this class is exactly similar to that of CameraActivity
 public class GalleryTags extends Activity {
 
     private int PICK_IMAGE_REQUEST = 1;
     String picturePath="";
-    SQLiteDatabase mydatabase;
+    //SQLiteDatabase ConstantsClass.mydatabaseLatest;
     Handler handler = new Handler() {
 
         public void handleMessage(Message msg) {
@@ -89,7 +90,7 @@ public class GalleryTags extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_gallery_tags);
-        mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
+        //ConstantsClass.mydatabaseLatest = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
 
         Button selectImage = (Button) findViewById(R.id.selectImage);
 
@@ -147,12 +148,12 @@ public class GalleryTags extends Activity {
                         latitude = location.getLatitude();
                     }
                     if (tagsFromDb != "") {
-                        mydatabase.execSQL("UPDATE IMAGE_TAG_RELATION set Tags='" + tags.getText().toString() + "' where picturePath='" + picturePath + "'");
-                        new DbFunctions().insertIntoTSRTbl(mydatabase, tags.getText().toString());
+                        ConstantsClass.mydatabaseLatest.execSQL("UPDATE IMAGE_TAG_RELATION set Tags='" + tags.getText().toString() + "' where picturePath='" + picturePath + "'");
+                        new DbFunctions().insertIntoTSRTbl(ConstantsClass.mydatabaseLatest, tags.getText().toString());
                     } else {
-                        mydatabase.execSQL("INSERT INTO IMAGE_TAG_RELATION VALUES('" + picturePath + "','" + tags.getText().toString() + "'," + latitude + "," + longitude + "," + "(datetime('now','localtime'))" + ")");
+                        ConstantsClass.mydatabaseLatest.execSQL("INSERT INTO IMAGE_TAG_RELATION VALUES('" + picturePath + "','" + tags.getText().toString() + "'," + latitude + "," + longitude + "," + "(datetime('now','localtime'))" + ")");
 
-                        new DbFunctions().insertIntoTSRTbl(mydatabase, tags.getText().toString());
+                        new DbFunctions().insertIntoTSRTbl(ConstantsClass.mydatabaseLatest, tags.getText().toString());
                     }
 
                     //Get the priorities
@@ -170,7 +171,7 @@ public class GalleryTags extends Activity {
                     }
 
                     ////Create message
-                    Cursor cursorForImages = mydatabase.rawQuery("SELECT * from IMAGE_TAG_RELATION where picturePath='" + picturePath + "'", null);
+                    Cursor cursorForImages = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from IMAGE_TAG_RELATION where picturePath='" + picturePath + "'", null);
                     while (cursorForImages.moveToNext()) {
 
                         String imagePath = cursorForImages.getString(0);
@@ -198,18 +199,23 @@ public class GalleryTags extends Activity {
                         int imageWidth=bitMapOption.outWidth;
                         int imageHeight=bitMapOption.outHeight;
                         long imageRes=imageWidth*imageHeight;
-                        new DbFunctions().insertIntoMSGTBL(mydatabase, imagePath, latitude1, longitude1, timestamp, tagsForCurrentImage, fileName, mime, format, localMacAddr, localName, UUID,sizeImage,imageRes,priorityLevel);
-                        mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_FOR_MSG_TBL VALUES('"+UUID+"',0,0,0)");
+                        new DbFunctions().insertIntoMSGTBL(ConstantsClass.mydatabaseLatest, imagePath, latitude1, longitude1, timestamp, tagsForCurrentImage, fileName, mime, format, localMacAddr, localName, UUID,sizeImage,imageRes,priorityLevel);
+
+                        ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO INCENT_FOR_MSG_TBL VALUES('"+UUID+"',0,0,0)");
                     }
                     Toast.makeText(getBaseContext(), "Tags are added", Toast.LENGTH_SHORT).show();
+                    ContextHandler contextHandler=new ContextHandler(getApplicationContext(),handler);
+                    new BackTask().execute(contextHandler);
+
 
                     // Toast.makeText(getApplicationContext(), tags.getText().toString()+" Will be inserted in db", Toast.LENGTH_SHORT).show();
                     //  Toast.makeText(getApplicationContext(), picturePath+" will be inserted in db", Toast.LENGTH_SHORT).show();
-               /* mydatabase.execSQL("CREATE TABLE IF NOT EXISTS IMAGE_TAG_RELATION(PicturePath VARCHAR,Tags VARCHAR,PRIMARY KEY(PicturePath));");
-                mydatabase.execSQL("INSERT INTO IMAGE_TAG_RELATION VALUES('"+picturePath+"','"+tags.getText().toString()+"')");
+               /* ConstantsClass.mydatabaseLatest.execSQL("CREATE TABLE IF NOT EXISTS IMAGE_TAG_RELATION(PicturePath VARCHAR,Tags VARCHAR,PRIMARY KEY(PicturePath));");
+                ConstantsClass.mydatabaseLatest.execSQL("INSERT INTO IMAGE_TAG_RELATION VALUES('"+picturePath+"','"+tags.getText().toString()+"')");
                 */
 
-                    Cursor resultSet = mydatabase.rawQuery("Select * from IMAGE_TAG_RELATION where picturePath='" + picturePath + "'", null);
+
+                    Cursor resultSet = ConstantsClass.mydatabaseLatest.rawQuery("Select * from IMAGE_TAG_RELATION where picturePath='" + picturePath + "'", null);
                     resultSet.moveToFirst();
                     String tagsFromDbNow = resultSet.getString(1);
                     String lat = resultSet.getString(2);
@@ -217,11 +223,11 @@ public class GalleryTags extends Activity {
                     // Toast.makeText(getApplicationContext(), lat+"::"+ts+" is found from DB", Toast.LENGTH_SHORT).show();
                     Cursor cursorForTagsForLocalDevice = null;
                     try {
-                        cursorForTagsForLocalDevice = mydatabase.rawQuery("SELECT GROUP_CONCAT(Tags) from IMAGE_TAG_RELATION", null);
+                        cursorForTagsForLocalDevice = ConstantsClass.mydatabaseLatest.rawQuery("SELECT GROUP_CONCAT(Tags) from IMAGE_TAG_RELATION", null);
                     } catch (Exception e) {
                         Log.d("ConnectThread", "Exception occurred, hahahaha!");
                     }
-                    Cursor cursorForAllMessages = mydatabase.rawQuery("SELECT GROUP_CONCAT(imagePath) from MESSAGE_TBL", null);
+                    Cursor cursorForAllMessages = ConstantsClass.mydatabaseLatest.rawQuery("SELECT GROUP_CONCAT(imagePath) from MESSAGE_TBL", null);
                     cursorForAllMessages.moveToFirst();
                     Log.d("GalleryTags", "Image paths in MESSAGE_TBL are:" + cursorForAllMessages.getString(0));
                     /////Testing
@@ -335,7 +341,7 @@ public class GalleryTags extends Activity {
     {
         String tagsFromDb="";
         try {
-            Cursor resultSet = mydatabase.rawQuery("Select Tags from IMAGE_TAG_RELATION where PicturePath='" + picturePathInput + "'", null);
+            Cursor resultSet = ConstantsClass.mydatabaseLatest.rawQuery("Select Tags from IMAGE_TAG_RELATION where PicturePath='" + picturePathInput + "'", null);
             resultSet.moveToFirst();
              tagsFromDb = resultSet.getString(0);
             return tagsFromDb;
@@ -348,6 +354,6 @@ public class GalleryTags extends Activity {
     }
     public void onDestroy() {
         super.onDestroy();
-        mydatabase.close();
+        //ConstantsClass.mydatabaseLatest.close();
     }
 }

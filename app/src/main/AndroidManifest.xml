@@ -17,11 +17,14 @@
     <uses-permission
         android:name="android.permission.CHANGE_WIFI_STATE"
         android:required="true" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"
+        android:hardwareAccelerated="false"
         android:icon="@drawable/appicon"
         android:label="@string/app_name"
+        android:largeHeap="true"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
@@ -55,7 +58,9 @@
                 <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
                 <action android:name="android.bluetooth.adapter.action.STATE_CHANGED" />
                 <action android:name="android.net.wifi.WIFI_STATE_CHANGED" />
+                <action android:name="android.net.wifi.WIFI_STATE_ENABLED" />
                 <action android:name="android.net.wifi.STATE_CHANGE" />
+                <action android:name="WIFI_DIS_DONE" />
             </intent-filter>
         </receiver>
 
@@ -68,12 +73,17 @@
         <activity android:name=".EnrichContentMain" />
         <activity android:name=".LocReached" />
         <activity android:name=".NavigateActivity" />
-        <activity android:name=".ListViewCheckBoxesActivity" />
+        <!-- <activity android:name=".ListViewCheckBoxesActivity" /> -->
         <activity android:name=".Ratings" />
         <activity android:name=".RatingsMain" />
         <activity android:name=".ShowRatings" />
-        <activity android:name=".WifiNetworking.WifiDiscovery" />
-        <activity android:name=".WifiDiscovery"></activity>
+        <!-- <activity android:name=".WifiNetworking.WifiDiscovery" /> -->
+        <activity android:name=".WifiDiscovery" />
+        <activity android:name=".Settings" />
+        <activity android:name=".AllRatings" />
+        <activity android:name=".RelayRate" />
+        <activity android:name=".EnemiesWithinAnArea" />
+        <activity android:name=".SettingsTSR"></activity>
     </application>
 
 </manifest>

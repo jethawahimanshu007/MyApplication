@@ -6,6 +6,9 @@ import android.database.sqlite.SQLiteDatabase;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import org.apache.commons.net.util.SubnetUtils;
 
@@ -15,6 +18,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.Inet6Address;
@@ -37,9 +41,10 @@ import java.util.regex.Pattern;
  * Created by Himanshu on 7/29/2017.
  */
 
-public class BackTask extends AsyncTask<Context,Void,Void> {
+//This file handles integration--- i.e. transfer file from DTNPhotoshare to ROGER
+    //The discovery part is commented out because it is no longer required!
+public class BackTask extends AsyncTask<ContextHandler,Void,Void> {
 
-    //static String IP_ADDRESS="10.106.71.212";
     String TAG="BackTask";
     String NOMAC="00:00:00:00:00:00";
     int TIMEOUT_SCAN = 3600; // seconds
@@ -59,39 +64,54 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
     public String macAddress = NOMAC;
     public String netmaskIp = "0.0.0.0";
     public String gatewayIp = "0.0.0.0";
-    SQLiteDatabase mydatabase;
+    Handler handler;
 
 
-    protected Void doInBackground(Context... urls) {
+    protected Void doInBackground(ContextHandler... urls) {
 
-        ConstantsClass.IpAddresses=new ArrayList<String>();
-        getWifiInfo(urls[0]);
-        executeCode();
-        Context context=urls[0];
-        mydatabase = context.openOrCreateDatabase(Constants.DATABASE_NAME, context.MODE_PRIVATE, null);
-        Log.d("BackTask","Total addresses to try connection for:"+ConstantsClass.IpAddresses.size());
-        multiConnectPool= Executors.newFixedThreadPool(10);
 
-        for(String ip_address:ConstantsClass.IpAddresses)
-        {
-            try {
-                //mPool.execute(new CheckRunnable(getIpFromLongUnsigned(i)));
-                multiConnectPool.execute(new ConnectRunnable(ip_address));
-                System.out.println("Trying to connect to "+ip_address+"...");
-
+        try {
+            ConstantsClass.IpAddresses = new ArrayList<String>();
+            getWifiInfo(urls[0].context);
+            Context context = urls[0].context;
+            //ConstantsClass.mydatabaseLatest = context.openOrCreateDatabase(Constants.DATABASE_NAME, context.MODE_PRIVATE, null);
+            handler = urls[0].handler;
+            //executeCode();
+            ConstantsClass.mydatabaseLatest.execSQL("CREATE TABLE IF NOT EXISTS ROGER_IP_ADD(IpAdd VARCHAR, PRIMARY KEY(IpAdd))");
+            Cursor cursorForROgerIP = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from ROGER_IP_ADD", null);
+            String IpAddress = new String();
+            while (cursorForROgerIP.moveToNext()) {
+                IpAddress = cursorForROgerIP.getString(0);
             }
-            catch(Exception e)
-            {
-                Log.d(TAG,"Exception in connection:"+e);
-            }
+
+            Log.d("BackTask", "Total addresses to try connection for:" + ConstantsClass.IpAddresses.size());
+            multiConnectPool = Executors.newFixedThreadPool(10);
+            Log.d("BackTask", "Trying to connect to Ip address:" + IpAddress);
+            multiConnectPool.execute(new ConnectRunnable(IpAddress));
+
         }
-
+        catch(Exception e)
+        {
+            Log.d("BackTask"," Exception occcured in BackTask:"+e);
+        }
      return null;
     }
 
-    private static void writeMessages(SQLiteDatabase mydatabase,Socket sock) {
-        Cursor allMessages = mydatabase.rawQuery("SELECT imagePath,fileName,size from MESSAGE_TBL", null);
-
+    private void writeMessages(SQLiteDatabase mydatabaseLatest,Socket sock) {
+        Cursor allMessages = ConstantsClass.mydatabaseLatest.rawQuery("SELECT imagePath,fileName,size,UUID from MESSAGE_TBL", null);
+        InputStream is= new InputStream() {
+            @Override
+            public int read() throws IOException {
+                return 0;
+            }
+        };
+        try {
+            is = sock.getInputStream();
+        }
+        catch(Exception e)
+        {
+            Log.d("BackTask","Exception getting inputStream");
+        }
         //Send total number of messages
         int totalNumberOfMessages = allMessages.getCount();
         byte totalNoByteArray[] = ByteBuffer.allocate(4).putInt(totalNumberOfMessages).array();
@@ -104,12 +124,11 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
 
             String filePath = allMessages.getString(0);
             String fileName = allMessages.getString(1);
-            int size = allMessages.getInt(2);
-
+            String UUID=allMessages.getString(3);
             File myFile = new File(filePath);
             byte[] mybytearray = new byte[(int) myFile.length()];
-            size = mybytearray.length;
-            Preamble preamble = new Preamble(size, fileName);
+            int size = mybytearray.length;
+            Preamble preamble = new Preamble(size, fileName,UUID.replace(":","+"));
             try {
                 byte preambleBytes[] = Serializer.serialize(preamble);
 
@@ -120,11 +139,32 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
                 //Write preamble
                 writeByteArray(preambleBytes,sock);
 
-                //Write message
-                FileInputStream fis = new FileInputStream(myFile);
-                BufferedInputStream bis = new BufferedInputStream(fis);
-                bis.read(mybytearray, 0, mybytearray.length);
-                writeByteArray(mybytearray,sock);
+                //Read flag for message send-- send if 1-- This is to avoid duplication--
+                // if a laptop does not have this message, it sends 1
+                byte[] flagBytes=new byte[4];
+                readByteArray(is,flagBytes);
+                ByteBuffer flagByteBuffer=ByteBuffer.wrap(flagBytes);
+                int flagForSending=flagByteBuffer.getInt();
+
+                //Send only if flag received==1
+                if(flagForSending==1) {
+                    //Write message
+                    FileInputStream fis = new FileInputStream(myFile);
+                    BufferedInputStream bis = new BufferedInputStream(fis);
+                    bis.read(mybytearray, 0, mybytearray.length);
+                    writeByteArray(mybytearray, sock);
+
+                    //Get metadata byte array
+                    String metadata = messageMetadata(UUID, ConstantsClass.mydatabaseLatest);
+                    byte[] metadataBytes = metadata.getBytes();
+                    byte metadataBytesSize[] = ByteBuffer.allocate(4).putInt(metadataBytes.length).array();
+
+                    //Write metadata size
+                    writeByteArray(metadataBytesSize, sock);
+
+                    //Write actual metadata
+                    writeByteArray(metadataBytes, sock);
+                }
             } catch (Exception e) {
                 Log.d("BackTask", "Exception occured");
             }
@@ -146,9 +186,31 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
         }
     }
 
+    public static void readByteArray(InputStream is, byte byteArray[])
+    {
+        int bytesRead;
+        int current = 0;
+
+        try{
+            bytesRead = is.read(byteArray,0,byteArray.length);
+            current= bytesRead;
+
+
+            while(current!=byteArray.length) {
+                bytesRead =is.read(byteArray, current, (byteArray.length-current));
+                if(bytesRead >= 0) current += bytesRead;
+            }
+
+        }
+        catch(Exception e)
+        {
+            System.out.println("Exception:"+e);
+        }
+        // System.out.println("Done reading "+byteArray.length+" bytes for the image" );
+    }
+
     public void executeCode()
     {
-
         int THREADS = 10;
         mPool= Executors.newFixedThreadPool(THREADS);
         Log.v(TAG, "start=" + getIpFromLongUnsigned(start) + " (" + start
@@ -191,8 +253,19 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
                 launch(i);
             }
         }
+
+
+
         mPool.shutdown();
         try {
+            if(mPool.awaitTermination(TIMEOUT_SCAN,TimeUnit.SECONDS)) {
+                Log.d("BackTask","Discovery done!!");
+                final Message msg = new Message();
+                final Bundle b = new Bundle();
+                b.putCharSequence("message", "Discovery done!");
+                msg.setData(b);
+                handler.sendMessage(msg);
+            }
             if(!mPool.awaitTermination(TIMEOUT_SCAN, TimeUnit.SECONDS)){
                 mPool.shutdownNow();
                 Log.e(TAG, "Shutting down pool");
@@ -227,12 +300,14 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
         public void run() {
             try{
 
+
                 InetAddress h = InetAddress.getByName(addr);
                 String hardwareAddress=new String();
                 // Arp Check #1
                 hardwareAddress = getHardwareAddress(addr);
                 if(!NOMAC.equals(hardwareAddress)) {
                     //Log.d(TAG, "found using arp #1 " + addr);
+                    ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO WIFI_NODES_TBL VALUES('"+addr+"')");
                     if(!ConstantsClass.IpAddresses.contains(addr))
                     ConstantsClass.IpAddresses.add(addr);
                     return;
@@ -241,6 +316,7 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
                 // Native InetAddress check
                 if (h.isReachable(200)) {
                     //Log.d(TAG, "found using InetAddress ping "+addr);
+                    ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO WIFI_NODES_TBL VALUES('"+addr+"')");
                     if(!ConstantsClass.IpAddresses.contains(addr))
                         ConstantsClass.IpAddresses.add(addr);
                     return;
@@ -249,6 +325,7 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
                 // Arp Check #2
                 hardwareAddress = getHardwareAddress(addr);
                 if(!NOMAC.equals(hardwareAddress)){
+                    ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO WIFI_NODES_TBL VALUES('"+addr+"')");
                     //Log.d(TAG, "found using arp #2 "+addr);
                     if(!ConstantsClass.IpAddresses.contains(addr))
                         ConstantsClass.IpAddresses.add(addr);
@@ -259,6 +336,7 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
                 hardwareAddress = getHardwareAddress(addr);
                 if(!NOMAC.equals(hardwareAddress)){
                     //Log.d(TAG, "found using arp #2 "+addr);
+                    ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO WIFI_NODES_TBL VALUES('"+addr+"')");
                     if(!ConstantsClass.IpAddresses.contains(addr))
                         ConstantsClass.IpAddresses.add(addr);
                     return;
@@ -338,22 +416,6 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
         return false;
     }
 
-    private String getInterfaceFirstIp(NetworkInterface ni) {
-        if (ni != null) {
-            for (Enumeration<InetAddress> nis = ni.getInetAddresses(); nis.hasMoreElements();) {
-                InetAddress ia = nis.nextElement();
-                if (!ia.isLoopbackAddress()) {
-                    if (ia instanceof Inet6Address) {
-                        Log.i(TAG, "IPv6 detected and not supported yet!");
-                        continue;
-                    }
-                    return ia.getHostAddress();
-                }
-            }
-        }
-        return "0.0.0.0";
-    }
-
     public long getUnsignedLongFromIp(String ip_addr) {
         String[] a = ip_addr.split("\\.");
         return (Integer.parseInt(a[0]) * 16777216 + Integer.parseInt(a[1]) * 65536
@@ -385,7 +447,7 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
         public void run() {
             try {
                 Socket sock = new Socket(addr, 1149);
-                writeMessages(mydatabase, sock);
+                writeMessages(ConstantsClass.mydatabaseLatest, sock);
             }
             catch(Exception e)
             {
@@ -394,17 +456,72 @@ public class BackTask extends AsyncTask<Context,Void,Void> {
         }
     }
 
+
+    //Get all the message metadata for a given UUID
+    public String messageMetadata(String UUIDRep,SQLiteDatabase mydatabaseLatest)
+    {
+        String metadata=new String();
+        try {
+            Cursor cursorForMatchingImage = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from MESSAGE_TBL where UUID='" + UUIDRep + "'", null);
+
+
+            Log.d("CTwRC","Number of entries in MesTBL with UUID "+UUIDRep+" are "+cursorForMatchingImage.getCount());
+            cursorForMatchingImage.moveToFirst();
+            String imagePath = cursorForMatchingImage.getString(0);
+            Log.d("DbFunctions", "Imagepath current is:" + imagePath);
+            String latitude = cursorForMatchingImage.getString(1);
+            String longitude = cursorForMatchingImage.getString(2);
+            String timestamp = cursorForMatchingImage.getString(3);
+            String tagsForCurrentImage = cursorForMatchingImage.getString(4);
+            String fileName = cursorForMatchingImage.getString(5);
+            String mime = cursorForMatchingImage.getString(6);
+            String format = cursorForMatchingImage.getString(7);
+            String localMacAddr = cursorForMatchingImage.getString(8);
+            String localName = cursorForMatchingImage.getString(9);
+
+            Cursor cursorForRateImage=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from RATE_PARAMS_TBL where UUID='"+UUIDRep+"'",null);
+            String rateData=new String();
+            double RatingForTags=5.0,Confidence=5.0,Quality=5.0;
+            if(cursorForRateImage.getCount()!=0) {
+                cursorForRateImage.moveToFirst();
+                //rating REAL,confi REAL,qua REAL
+                RatingForTags = cursorForRateImage.getDouble(1);
+                Confidence = cursorForRateImage.getDouble(2);
+                Quality = cursorForRateImage.getDouble(3);
+
+            }
+            rateData="Rating For Tags:"+RatingForTags+"\r\n"+"Confidence on rating for tags:"+Confidence+"\r\n"+"Rating for quality of Message:"+Quality;
+            //long size = cursorForMatchingImage.getLong(13);
+            //long quality = cursorForMatchingImage.getLong(14);
+            //long priority = cursorForMatchingImage.getLong(15);
+
+            metadata+="File name:"+fileName+ "\r\n"+"Timestamp:"+timestamp+"\r\n"+"Tags:"+tagsForCurrentImage+"\r\n";
+            metadata+="Latitude:"+latitude+"\r\n"+"Longitude:"+longitude+"\r\n"+"Format:"+format+"\r\n"+"Source:"+localMacAddr+"\r\n";
+            metadata+=rateData;
+            Log.d("BackTask","metadata value is:"+metadata);
+
+        }
+        catch(Exception e)
+        {
+            Log.d("CTwRC","Exception occured in sendMessage function:"+e);
+        }
+        return metadata;
+    }
+
 }
 
 class Preamble implements Serializable
 {
     int dataSize;
     String dataFileName;
+    String UUID;
     static final long serialVersionUID=40L;
-    Preamble(int size, String fileName)
+    Preamble(int size, String fileName,String UUIDIn)
     {
-        dataSize=size;dataFileName=fileName;
+        dataSize=size;dataFileName=fileName;UUID=UUIDIn;
     }
 }
+
+
 
 

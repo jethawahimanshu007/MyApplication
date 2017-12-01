@@ -24,78 +24,77 @@ import java.util.TimerTask;
 /**
  * Created by Himanshu on 8/22/2016.
  */
+//This class is used to perform the bluetooth discovery of all the nearby devices--
+//after the devices are discovered, they are saved in the database
 public class GeneralBTFuncs implements Runnable{
 
     List<String> al = new ArrayList<String>();
     int flagBTenOrDis=0;
      int discoveryFinished=0;
-    long currentTsForAction=0;
-   //  Activity activity1;
+    long startTimeDiscovery=0;
+    int calledFirstTime=0;
     BroadcastReceiver mReceiver;
     Context context;
-    int delayValue=5000;
-    //int delay = 60000; // delay for 60 sec.
     int delay = 0;
-    //delay=delayValue;
     int resource; Activity activity;
     ArrayList<BluetoothDevice> BtDevices = new ArrayList<BluetoothDevice>();
 
-    SQLiteDatabase mydatabase=null;
-    GeneralBTFuncs(Context context,int resource,Activity activity,SQLiteDatabase mydatabase)
+    GeneralBTFuncs(Context context,int resource,Activity activity,SQLiteDatabase mydatabaseLatest)
     {
         this.context=context;
         this.resource=resource;
         this.activity=activity;
-        this.mydatabase=mydatabase;
     }
 
-
-    //int delay = 60000; // delay for 5 sec.
-
-
+    //run function of GeneralBtFuncs-- performs discovery every 60 seconds
     public void run()
     {
 
         int period = 60000; // repeat every 60 secs.
-
+        Log.d("GeneralBTFuncs","General BTfuncs is called");
 
         Timer timer = new Timer();
                 timer.schedule(new TimerTask() {
 
             public void run() {
-               // delay=delayValue+5000;
                 int connectAttemptDoneOrNot=1;
-                Cursor cursorForConnectAttempt=mydatabase.rawQuery("SELECT * from CONNECT_ALL_ATTEMPT_TBL",null);
-                while(cursorForConnectAttempt.moveToNext())
-                {
-                    connectAttemptDoneOrNot=cursorForConnectAttempt.getInt(0);
-                }
-                Cursor cursorLog=mydatabase.rawQuery("SELECT * FROM CONNECTED_LOG_TBL where doneOrNot=0",null);
-                if(cursorLog.getCount()!=0 )
-                {
-                    Log.d("GeneralBTFuncs","Discovery not being done in this iteration");
-                }
-                else {
-                    if( connectAttemptDoneOrNot==1)
-                    runDiscovery(context, android.R.layout.simple_list_item_1, activity, mydatabase);
-
-                }
-                System.out.println("repeating after 60 seconds");
-
+                //Check if all the devices from the previous discovery are tried for connection, if not do not do discovery
+                Cursor cursorForConnectAttempt=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from CONNECT_ALL_ATTEMPT_TBL",null);
+               try {
+                   while (cursorForConnectAttempt.moveToNext()) {
+                       connectAttemptDoneOrNot = cursorForConnectAttempt.getInt(0);
+                   }
+                   Cursor cursorLog = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * FROM CONNECTED_LOG_TBL where doneOrNot=0", null);
+                   if (cursorLog.getCount() != 0) {
+                       Log.d("GeneralBTFuncs", "Discovery not being done in this iteration");
+                   } else {
+                       if (connectAttemptDoneOrNot == 1)
+                           runDiscovery(context, android.R.layout.simple_list_item_1, activity, ConstantsClass.mydatabaseLatest);
+                        else if(calledFirstTime==0)
+                       {
+                           calledFirstTime++;
+                           runDiscovery(context, android.R.layout.simple_list_item_1, activity, ConstantsClass.mydatabaseLatest);
+                       }
+                   }
+                   System.out.println("repeating after 60 seconds");
+               }
+               catch(Exception e)
+               {
+                   Log.d("GeneralBTFuncs","Some exception occured!");
+               }
 
 
             }
 
         }, delay,period);
     }
+
     ////Puts devices in table BLUETOOTH_DEVICES_IN_RANGE
-    public ArrayAdapter<String> runDiscovery(Context context, int resource, Activity activity, final SQLiteDatabase mydatabase)
+    public ArrayAdapter<String> runDiscovery(Context context, int resource, Activity activity, final SQLiteDatabase mydatabaseLatest)
     {
 
-        mydatabase.execSQL("DROP TABLE IF EXISTS BLUETOOTH_DEVICES_IN_RANGE");
-        mydatabase.execSQL("CREATE TABLE IF NOT EXISTS BLUETOOTH_DEVICES_IN_RANGE(BTDeviceMacAddr VARCHAR,BTDeviceName VARCHAR,RSSI VARCHAR,deviceClass INTEGER,PRIMARY KEY(BTDeviceMacAddr))");
-        //This code is for bluetooth testing
-        //This line gets the bluetooth radio
+        ConstantsClass.mydatabaseLatest.execSQL("DROP TABLE IF EXISTS BLUETOOTH_DEVICES_IN_RANGE");
+        ConstantsClass.mydatabaseLatest.execSQL("CREATE TABLE IF NOT EXISTS BLUETOOTH_DEVICES_IN_RANGE(BTDeviceMacAddr VARCHAR,BTDeviceName VARCHAR,RSSI VARCHAR,deviceClass INTEGER,PRIMARY KEY(BTDeviceMacAddr))");
         final ArrayAdapter<String> mArrayAdapter = new ArrayAdapter<String>(context,resource);
         final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         Log.d("GeneralBTFuncs","Inside runDiscovery function");
@@ -114,18 +113,42 @@ public class GeneralBTFuncs implements Runnable{
         }
         else
         {
-            if (!mBluetoothAdapter.isEnabled()) {
-                //Will ask user to enable bluetooth
-                //Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-               // activity1=avBar.activityMain;
-               // ((Activity)context).startActivityForResult(enableBtIntent, 1);
-              // activity.startActivityForResult(enableBtIntent, 1);
-            }
-            else
-            {
                 BtDevices= new ArrayList<BluetoothDevice>();;
                 mBluetoothAdapter.startDiscovery();
-            }
+                startTimeDiscovery=System.currentTimeMillis();
+                long TimeKeeper;
+                while(true)
+                {
+                    TimeKeeper=System.currentTimeMillis();
+                    //Following condition checks if the time for which discovery has been going on is greater than 15 seconds,
+                    //Discovery is stopped if it exceeds 15 seconds!
+                    if(discoveryFinished!=1 && TimeKeeper-startTimeDiscovery>15000)
+                    {
+                        mBluetoothAdapter.cancelDiscovery();
+                        Cursor cursor = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from BLUETOOTH_DEVICES_IN_RANGE order by RSSI", null);
+
+                        try {
+                            while (cursor.moveToNext()) {
+                                String deviceMacAddr = cursor.getString(0);
+
+                                if (!(al.contains(deviceMacAddr))) {
+                                    al.add(deviceMacAddr);
+                                }
+                            }
+                            String devices[] = new String[al.size()];
+                            devices = al.toArray(devices);
+                            ConnectThread newConnectThread = new ConnectThread(devices, context);
+                            newConnectThread.start();
+
+                            discoveryFinished=1;
+                        } finally {
+                            cursor.close();
+                            discoveryFinished=1;
+                        }
+                        break;
+                    }
+                }
+
 
 
             // Create a BroadcastReceiver for ACTION_FOUND
@@ -138,10 +161,7 @@ public class GeneralBTFuncs implements Runnable{
                     {
 
                         if(flagBTenOrDis==0) {
-                           // Log.d("GeneralBTFuncs", "Bluetooth enabled or disabled");
                             Long tsLong = System.currentTimeMillis()/1000;
-                           // Log.d("GeneralBtFuncs","tsLong:"+tsLong);
-                            mBluetoothAdapter.startDiscovery();
                             flagBTenOrDis=1;
                         }
 
@@ -160,33 +180,19 @@ public class GeneralBTFuncs implements Runnable{
                         if(discoveryFinished==0) {
                             Log.d("GeneralBTFuncs", "Finished discovery!!");
 
-                           // Toast toast = Toast.makeText(context, "Discovery finished", Toast.LENGTH_SHORT);
-                           // Log.d("Neighbors", "Discovery finished");
-
-                            Cursor cursor = mydatabase.rawQuery("SELECT * from BLUETOOTH_DEVICES_IN_RANGE order by RSSI", null);
-
+                            Cursor cursor = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from BLUETOOTH_DEVICES_IN_RANGE order by RSSI", null);
                             try {
                                 while (cursor.moveToNext()) {
                                     String deviceMacAddr = cursor.getString(0);
                                     int deviceClass=cursor.getInt(3);
 
                                     int RSSI=cursor.getInt(2);
-                                    if (!al.contains(deviceMacAddr)) {
-                                        if(deviceMacAddr.equals("18:3B:D2:EA:15:62")||deviceMacAddr.equals("18:3B:D2:E9:CC:9B")||deviceClass==268)
+                                    if (!(al.contains(deviceMacAddr))) {
                                             al.add(deviceMacAddr+"--"+deviceClass);
-                                         //String RSSIs=Integer.toString(RSSI);
-                                        //if(RSSIs.length()>0)
-                                         //   al.add(deviceMacAddr);
-
-                                        //Log.d("GeneralBTfuncs","RSSI value is:"+RSSI+"and RSSI length of string is:"+RSSIs.length());
-                                      //  Toast.makeText(context, deviceMacAddr + ":" + deviceName + " is in range", Toast.LENGTH_SHORT).show();
                                     }
                                 }
                                 String devices[] = new String[al.size()];
                                 devices = al.toArray(devices);
-                                Log.d("GeneralBTFuncs", "Number of Bluetooth devices in range are:" + devices.length);
-
-                                Log.d("", "devices are:" + Arrays.toString(devices));
                                 ConnectThread newConnectThread = new ConnectThread(devices, context);
                                 newConnectThread.start();
 
@@ -206,7 +212,7 @@ public class GeneralBTFuncs implements Runnable{
                         // Get the BluetoothDevice object from the Intent
 
                         BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                        Log.d("GeneralBTFuncs","Device type and bluetooth class and device class and major device class are:"+device.getType()+" and "+device.getBluetoothClass().getDeviceClass());
+                        //Log.d("GeneralBTFuncs","Device type and bluetooth class and device class and major device class are:"+device.getType()+" and "+device.getBluetoothClass().getDeviceClass());
                         //Code to check if the device found is a laptop
                         if(device.getBluetoothClass().getDeviceClass()==268)
                         {
@@ -216,21 +222,16 @@ public class GeneralBTFuncs implements Runnable{
                         int deviceClass=device.getBluetoothClass().getDeviceClass();
                         short RSSI = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI,Short.MIN_VALUE);
                         double txP=Math.pow(10.0,RSSI/10.0);
-                        Log.d("GeneralBTFuncs","txP value is:"+txP);
+                        //Log.d("GeneralBTFuncs","txP value is:"+txP);
                         //Log.d("GeneralBTFuncs","Max power value might be:"+Math.pow(10.0,10.0));
                         //String RSSI= intent.getParcelableExtra(BluetoothDevice.EXTRA_RSSI);
                         if(!BtDevices.contains(device)) {
                             BtDevices.add(device);
-                            // Add the name and address to an array adapter to show in a ListView
-                           // Toast toast = Toast.makeText(context, "Device found:" + device.getName(), Toast.LENGTH_SHORT);
-                           // toast.setMargin(50, 50);
-                           // toast.show();
-                            Log.d("MainActivity", "Device found:" + device.getName() + "\n");
-                            String somethingToDebug = "'" + device.getAddress() + "','" + device.getName() + "'";
-                            mydatabase.execSQL("CREATE TABLE IF NOT EXISTS BLUETOOTH_DEVICES_IN_RANGE(BTDeviceMacAddr VARCHAR,BTDeviceName VARCHAR,RSSI VARCHAR,deviceClass INTEGER,PRIMARY KEY(BTDeviceMacAddr))");
+
+                            ConstantsClass.mydatabaseLatest.execSQL("CREATE TABLE IF NOT EXISTS BLUETOOTH_DEVICES_IN_RANGE(BTDeviceMacAddr VARCHAR,BTDeviceName VARCHAR,RSSI VARCHAR,deviceClass INTEGER,PRIMARY KEY(BTDeviceMacAddr))");
                             try {
                                 if(!(device.getName().contains("'")))
-                                mydatabase.execSQL("INSERT OR IGNORE INTO BLUETOOTH_DEVICES_IN_RANGE VALUES('" + device.getAddress() + "','" + device.getName() + "','"+RSSI+"',"+deviceClass+")");
+                                ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO BLUETOOTH_DEVICES_IN_RANGE VALUES('" + device.getAddress() + "','" + device.getName() + "','"+RSSI+"',"+deviceClass+")");
                             } catch (Exception e) {
                                 Log.d("GeneralBT", "Exception thrown while inserting into BLUETOOTH_DEVICES_IN_RANGE:" + e);
                             }

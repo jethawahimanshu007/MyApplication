@@ -40,7 +40,7 @@ public class Ratings extends AppCompatActivity {
                 ImageItem item = (ImageItem) parent.getItemAtPosition(position);
 
                 //Create intent
-                Intent intent = new Intent(Ratings.this, RatingsMain.class);
+                Intent intent = new Intent(Ratings.this, AllRatings.class);
                 intent.putExtra("title", item.getTitle());
                 //intent.putExtra("image", item.getImage());
 
@@ -53,10 +53,11 @@ public class Ratings extends AppCompatActivity {
     }
 
     private ArrayList<ImageItem> getData() {
-        SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
+        //SQLiteDatabase ConstantsClass.mydatabaseLatest = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
         DbFunctions dbFunctions = new DbFunctions();
 /////Need to change this
-        String mobileArray[] = dbFunctions.getReceivedImages(mydatabase);
+        //String mobileArray[] = dbFunctions.getOwnImages(ConstantsClass.mydatabaseLatest);
+        String mobileArray[] = dbFunctions.getReceivedImages(ConstantsClass.mydatabaseLatest);
         final ArrayList<ImageItem> imageItems = new ArrayList<>();
         if (mobileArray != null) {
             for(int i=0;i<mobileArray.length;i++)

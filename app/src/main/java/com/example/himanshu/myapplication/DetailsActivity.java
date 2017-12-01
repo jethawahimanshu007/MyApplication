@@ -1,7 +1,6 @@
 package com.example.himanshu.myapplication;
 
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
@@ -13,8 +12,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+
+//This file is used to show the image all the metadata for the image as well
 
 public class DetailsActivity extends ActionBarActivity {
 
@@ -24,29 +23,19 @@ public class DetailsActivity extends ActionBarActivity {
         setContentView(R.layout.activity_details);
 
 
+        //This part is used to show the image
         String title = getIntent().getStringExtra("title");
-        Log.d("DetailsAc","Image title is:"+title);
-
-        File sd = Environment.getExternalStorageDirectory();
         File image = new File(title);
         BitmapFactory.Options bmOptions = new BitmapFactory.Options();
         Bitmap bitmap = BitmapFactory.decodeFile(image.getAbsolutePath(),bmOptions);
-
-
-
-
         ImageView imageView = (ImageView) findViewById(R.id.imageDetails);
         imageView.setImageBitmap(bitmap);
 
-        SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
+        //This part is to show all the metadata details of the image
         String allAttributes=new String();
         Cursor cursorForImages = null;
-
-
-
-
         try {
-            cursorForImages = mydatabase.rawQuery("SELECT * from MESSAGE_TBL where imagePath='"+title+"'", null);
+            cursorForImages = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from MESSAGE_TBL where imagePath='"+title+"'", null);
             if (cursorForImages == null)
                 Log.d("DbFuncGetTags", "cursorForImages isnull");
         } catch (Exception e) {
@@ -73,7 +62,7 @@ public class DetailsActivity extends ActionBarActivity {
                         String fileName = cursorForImages.getString(5);allAttributes+="File name:"+fileName+"\n";
                         String UUID=cursorForImages.getString(10);allAttributes+="UUID:"+UUID+"\n";
 
-                        Cursor cursorForMsgIn=mydatabase.rawQuery("SELECT * FROM  INCENT_FOR_MSG_TBL where UUID='"+UUID+"'",null);
+                        Cursor cursorForMsgIn=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * FROM  INCENT_FOR_MSG_TBL where UUID='"+UUID+"'",null);
                         while(cursorForMsgIn.moveToNext())
                         {
                             Double incentivePromise=cursorForMsgIn.getDouble(1);allAttributes+="Incentive promise:"+incentivePromise+"\n";
@@ -81,17 +70,11 @@ public class DetailsActivity extends ActionBarActivity {
                             Double incentivePaid=cursorForMsgIn.getDouble(3);allAttributes+="Incentive paid:"+incentivePaid+"\n";
 
                         }
-                        /*ICDCS*/
-                        //String incentivePromise="1.25";allAttributes+="Incentive promise:"+incentivePromise+"\n";
-                        //String incentiveReceived="2.5";allAttributes+="Incentive received:"+incentiveReceived+"\n";
-                        /*ICDCS*/
 
                     }
-                //Log.d("DetailsActivity","allAttributes in DetailsActivity is:"+allAttributes);
                 TextView titleTextView = (TextView) findViewById(R.id.titleDetails);
                 titleTextView.setText(allAttributes);
                 titleTextView.setMovementMethod(new ScrollingMovementMethod());
-
 
             } catch (Exception e) {
                 Log.d("DbFunctions", "Exception occured in sqlite query!!! ::" + e);

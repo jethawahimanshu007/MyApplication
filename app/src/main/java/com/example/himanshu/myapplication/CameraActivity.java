@@ -39,14 +39,14 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 
+//This file is to create a new message using camera of the device
 public class CameraActivity extends Activity {
 
     int TAKE_PHOTO_CODE = 0;
-    public static int count = 0;
-    SQLiteDatabase mydatabase ;
     String picturePath="";
     String file="";
 
+    //This handler is for populating the tags for the image
     Handler handler = new Handler() {
 
         public void handleMessage(Message msg) {
@@ -90,22 +90,18 @@ public class CameraActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
 
-        // Here, we are making a folder named picFolder to store
+        // Here, we are making a folder named picFolderDtn to store
         // pics taken by the camera using this application.
         final String dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/picFolderDtn/";
         File newdir = new File(dir);
         newdir.mkdirs();
-        mydatabase= openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);;
 
         Button capture = (Button) findViewById(R.id.selectImageCamera);
         final EditText tags=(EditText)findViewById(R.id.tagsTextCamera);
         Button addTagsButton=(Button)findViewById(R.id.addTagsButtonCamera);
+        //This is to start the camera of the device
         capture.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-
-                // Here, the counter will be incremented each time, and the
-                // picture taken by camera will be stored as 1.jpg,2.jpg
-                // and likewise.
 
                 SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy-hh-mm-ss");
                 String format = simpleDateFormat.format(new Date());
@@ -128,38 +124,38 @@ public class CameraActivity extends Activity {
                 startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
             }
         });
+        //This is to create the message
         addTagsButton.setOnClickListener(new View.OnClickListener() {
             @Override
             ///Action for button
             public void onClick(View view) {
                 if (!picturePath.equals("") && tags.getText().toString() != null && tags.getText().toString().length() > 0) {
                     if (ActivityCompat.checkSelfPermission(getBaseContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-
                         Toast.makeText(getApplicationContext(), "First enable LOCATION ACCESS in settings.", Toast.LENGTH_LONG).show();
                         return;
                     }
+                    //Tag the image with the location value- latitude and longitude-- Save location
                     String tagsFromDb = getTagsFromPicturePath(picturePath);
                     LocationManager lm = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
                     Location location = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+
                     double latitude = 0.0;
                     double longitude = 0.0;
                     if (location != null) {
                         longitude = location.getLongitude();
                         latitude = location.getLatitude();
                     }
+
                     if (tagsFromDb != "") {
-                        mydatabase.execSQL("UPDATE IMAGE_TAG_RELATION set Tags='" + tags.getText().toString() + "' where picturePath='" + picturePath + "'");
-                        new DbFunctions().insertIntoTSRTbl(mydatabase, tags.getText().toString());
+                        ConstantsClass.mydatabaseLatest.execSQL("UPDATE IMAGE_TAG_RELATION set Tags='" + tags.getText().toString() + "' where picturePath='" + picturePath + "'");
+                        new DbFunctions().insertIntoTSRTbl(ConstantsClass.mydatabaseLatest, tags.getText().toString());
                     } else {
                         Log.d("CameraActivity", "Latitude and longitude values:" + latitude + "::" + longitude);
-                        mydatabase.execSQL("INSERT INTO IMAGE_TAG_RELATION VALUES('" + picturePath + "','" + tags.getText().toString() + "'," + latitude + "," + longitude + "," + "(datetime('now','localtime'))" + ")");
-                        new DbFunctions().insertIntoTSRTbl(mydatabase, tags.getText().toString());
+                        ConstantsClass.mydatabaseLatest.execSQL("INSERT INTO IMAGE_TAG_RELATION VALUES('" + picturePath + "','" + tags.getText().toString() + "'," + latitude + "," + longitude + "," + "(datetime('now','localtime'))" + ")");
+                        new DbFunctions().insertIntoTSRTbl(ConstantsClass.mydatabaseLatest, tags.getText().toString());
                     }
-                    // Toast.makeText(getApplicationContext(), tags.getText().toString()+" Will be inserted in db", Toast.LENGTH_SHORT).show();
-                    //  Toast.makeText(getApplicationContext(), picturePath+" will be inserted in db", Toast.LENGTH_SHORT).show();
-               /* mydatabase.execSQL("CREATE TABLE IF NOT EXISTS IMAGE_TAG_RELATION(PicturePath VARCHAR,Tags VARCHAR,PRIMARY KEY(PicturePath));");
-                mydatabase.execSQL("INSERT INTO IMAGE_TAG_RELATION VALUES('"+picturePath+"','"+tags.getText().toString()+"')");
-                */
+
+                    //This is to get the input priority from the user-- Store it in the database
                     RadioGroup radioGroup = (RadioGroup) findViewById(R.id.radioGroupCamera);
                     int selectedId = radioGroup.getCheckedRadioButtonId();
                     RadioButton radioButton = (RadioButton) findViewById(selectedId);
@@ -172,7 +168,8 @@ public class CameraActivity extends Activity {
                         case "Low": priorityLevel=3; break;
                     }
 
-                    Cursor cursorForImages = mydatabase.rawQuery("SELECT * from IMAGE_TAG_RELATION where picturePath='" + picturePath + "'", null);
+                    //See if the image exists on the path already in the database
+                    Cursor cursorForImages = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from IMAGE_TAG_RELATION where picturePath='" + picturePath + "'", null);
                     while (cursorForImages.moveToNext()) {
 
                         String imagePath = cursorForImages.getString(0);
@@ -201,12 +198,15 @@ public class CameraActivity extends Activity {
                         int imageHeight=bitMapOption.outHeight;
                         long imageRes=imageWidth*imageHeight;
 
-                        new DbFunctions().insertIntoMSGTBL(mydatabase, imagePath, latitude1, longitude1, timestamp, tagsForCurrentImage, fileName, mime, format, localMacAddr, localName, UUID,sizeImage,imageRes,priorityLevel);
-                        mydatabase.execSQL("INSERT OR IGNORE INTO INCENT_FOR_MSG_TBL VALUES('"+UUID+"',0,0,0)");
+                        new DbFunctions().insertIntoMSGTBL(ConstantsClass.mydatabaseLatest, imagePath, latitude1, longitude1, timestamp, tagsForCurrentImage, fileName, mime, format, localMacAddr, localName, UUID,sizeImage,imageRes,priorityLevel);
+                        ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO INCENT_FOR_MSG_TBL VALUES('"+UUID+"',0,0,0)");
                     }
 
                     Toast.makeText(getBaseContext(), "Tags are added", Toast.LENGTH_SHORT).show();
-                    Cursor resultSet = mydatabase.rawQuery("Select * from IMAGE_TAG_RELATION where picturePath='" + picturePath + "'", null);
+                    ContextHandler contextHandler=new ContextHandler(getApplicationContext(),handler);
+                    new BackTask().execute(contextHandler);
+
+                    Cursor resultSet = ConstantsClass.mydatabaseLatest.rawQuery("Select * from IMAGE_TAG_RELATION where picturePath='" + picturePath + "'", null);
                     resultSet.moveToFirst();
                     String tagsFromDbNow = resultSet.getString(1);
                     String lat = resultSet.getString(2);
@@ -214,15 +214,13 @@ public class CameraActivity extends Activity {
                     // Toast.makeText(getApplicationContext(), lat+"::"+ts+" is found from DB", Toast.LENGTH_SHORT).show();
                     Cursor cursorForTagsForLocalDevice = null;
                     try {
-                        cursorForTagsForLocalDevice = mydatabase.rawQuery("SELECT GROUP_CONCAT(Tags) from IMAGE_TAG_RELATION", null);
+                        cursorForTagsForLocalDevice = ConstantsClass.mydatabaseLatest.rawQuery("SELECT GROUP_CONCAT(Tags) from IMAGE_TAG_RELATION", null);
                     } catch (Exception e) {
                         Log.d("ConnectThread", "Exception occurred, hahahaha!");
                     }
                     /////Testing
                     try {
                         String tagsForLocalDevice = new String();
-
-
                         try {
 
                             if (cursorForTagsForLocalDevice != null)
@@ -300,18 +298,11 @@ public class CameraActivity extends Activity {
         }
     }
 
-    /*
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_camera);
-    }
-    */
-
     public String getTagsFromPicturePath(String picturePathInput)
     {
         String tagsFromDb="";
         try {
-            Cursor resultSet = mydatabase.rawQuery("Select Tags from IMAGE_TAG_RELATION where PicturePath='" + picturePathInput + "'", null);
+            Cursor resultSet = ConstantsClass.mydatabaseLatest.rawQuery("Select Tags from IMAGE_TAG_RELATION where PicturePath='" + picturePathInput + "'", null);
             resultSet.moveToFirst();
             tagsFromDb = resultSet.getString(0);
             return tagsFromDb;

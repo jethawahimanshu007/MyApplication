@@ -43,8 +43,8 @@ public class NavigateActivity extends AppCompatActivity {
         gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
                 ImageItem item = (ImageItem) parent.getItemAtPosition(position);
-                SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
-                Cursor cursorForLocation=mydatabase.rawQuery("SELECT * FROM MESSAGE_TBL where ImagePath='"+item.getTitle()+"'",null);
+               // SQLiteDatabase ConstantsClass.mydatabaseLatest = openOrCreateDatabase(Constants.DATABASE_NAME,MODE_PRIVATE,null);
+                Cursor cursorForLocation=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * FROM MESSAGE_TBL where ImagePath='"+item.getTitle()+"'",null);
                 LatLng closest; double latitude=0.0, longitude=0.0;
                 while(cursorForLocation.moveToNext())
                 {
@@ -66,10 +66,10 @@ public class NavigateActivity extends AppCompatActivity {
     }
 
     private ArrayList<ImageItem> getData() {
-        SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
+        //SQLiteDatabase ConstantsClass.mydatabaseLatest = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
         DbFunctions dbFunctions = new DbFunctions();
 
-        String mobileArray[] = dbFunctions.getReceivedImages(mydatabase);
+        String mobileArray[] = dbFunctions.getReceivedImages(ConstantsClass.mydatabaseLatest);
         final ArrayList<ImageItem> imageItems = new ArrayList<>();
         if (mobileArray != null) {
             for(int i=0;i<mobileArray.length;i++)

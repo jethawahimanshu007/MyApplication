@@ -52,10 +52,10 @@ public class ShowReceivedImages extends AppCompatActivity {
     }
 
     private ArrayList<ImageItem> getData() {
-        SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
+        //SQLiteDatabase ConstantsClass.mydatabaseLatest = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
         DbFunctions dbFunctions = new DbFunctions();
 
-        String mobileArray[] = dbFunctions.getReceivedImages(mydatabase);
+        String mobileArray[] = dbFunctions.getReceivedImages(ConstantsClass.mydatabaseLatest);
         final ArrayList<ImageItem> imageItems = new ArrayList<>();
         if (mobileArray != null) {
             for(int i=0;i<mobileArray.length;i++)

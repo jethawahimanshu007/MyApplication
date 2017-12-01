@@ -170,4 +170,12 @@
         <item>Ping/connect (default)</item>
         <item>DNS requests</item>
     </string-array>
+
+    <string-array name="tsr_array">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+    </string-array>
 </resources>

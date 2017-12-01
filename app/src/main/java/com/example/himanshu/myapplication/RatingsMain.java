@@ -32,8 +32,8 @@ public class RatingsMain extends AppCompatActivity {
 
         final String title = getIntent().getStringExtra("title");
 
-       final SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
-        Cursor getUUIDFromTitle=mydatabase.rawQuery("SELECT UUID from MESSAGE_TBL where imagePath='"+title+"'",null);
+       //final SQLiteDatabase ConstantsClass.mydatabaseLatest = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
+        Cursor getUUIDFromTitle=ConstantsClass.mydatabaseLatest.rawQuery("SELECT UUID from MESSAGE_TBL where imagePath='"+title+"'",null);
 
         //Code for checking if a rating already exists for the message
 
@@ -54,7 +54,7 @@ public class RatingsMain extends AppCompatActivity {
         RatingBar confiBar = (RatingBar) findViewById(R.id.confiBar);
         RatingBar mesquabar = (RatingBar) findViewById(R.id.mesquabar);
 
-        Cursor ifUUIDExists=mydatabase.rawQuery("SELECT * from RATE_PARAMS_TBL where UUID='"+UUID+"'",null);
+        Cursor ifUUIDExists=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from RATE_PARAMS_TBL where UUID='"+UUID+"'",null);
         if(ifUUIDExists.getCount()!=0)
         {
             ifUUIDExists.moveToNext();
@@ -95,32 +95,32 @@ public class RatingsMain extends AppCompatActivity {
             ///Action for button
             public void onClick(View view) {
 
-                Cursor ifUUIDExists=mydatabase.rawQuery("SELECT * from RATE_PARAMS_TBL where UUID='"+UUID+"'",null);
+                Cursor ifUUIDExists=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from RATE_PARAMS_TBL where UUID='"+UUID+"'",null);
                 if(ifUUIDExists.getCount()==0)
                 {
-                    mydatabase.execSQL("INSERT INTO RATE_PARAMS_TBL VALUES('"+UUID+"',"+rateTags+","+confi+","+mesQua+")");
+                    ConstantsClass.mydatabaseLatest.execSQL("INSERT INTO RATE_PARAMS_TBL VALUES('"+UUID+"',"+rateTags+","+confi+","+mesQua+")");
                 }
                 else
                 {
                     //UUID varchar, rating REAL,confi REAL,qua
-                    mydatabase.execSQL("UPDATE RATE_PARAMS_TBL SET rating="+rateTags+",confi="+confi+",qua="+mesQua+" WHERE UUID='"+UUID+"'");
+                    ConstantsClass.mydatabaseLatest.execSQL("UPDATE RATE_PARAMS_TBL SET rating="+rateTags+",confi="+confi+",qua="+mesQua+" WHERE UUID='"+UUID+"'");
                 }
                 Log.d("RatingsMain","VAlues of variables rating,confi,mesQua are :"+rateTags+","+confi+","+mesQua);
                 double finalRating=0.5*rateTags*(confi/5)+0.5*mesQua;
                 Log.d("RatingsMain","final Rating for this message is:"+finalRating);
-                Cursor numOfRowsInRatings=mydatabase.rawQuery("SELECT * from RATINGS_TBL where UUID='"+title+"'",null);
+                Cursor numOfRowsInRatings=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from RATINGS_TBL where UUID='"+UUID+"'",null);
                 if(numOfRowsInRatings.getCount()==0)
                 {
-                    mydatabase.execSQL("INSERT INTO RATINGS_TBL VALUES('"+UUID+"',"+finalRating+")");
+                    ConstantsClass.mydatabaseLatest.execSQL("INSERT INTO RATINGS_TBL VALUES('"+UUID+"',"+finalRating+")");
                 }
                 else
                 {
-                    mydatabase.execSQL("UPDATE RATINGS_TBL set rating="+finalRating+" WHERE UUID='"+UUID+"'");
+                    ConstantsClass.mydatabaseLatest.execSQL("UPDATE RATINGS_TBL set rating="+finalRating+" WHERE UUID='"+UUID+"'");
                 }
 
                 //Compute blacklist for the sender of the message
 
-                Cursor deviceAdCursor=mydatabase.rawQuery("SELECT sourceMacAddr from MESSAGE_TBL where UUID='"+UUID+"'",null);
+                Cursor deviceAdCursor=ConstantsClass.mydatabaseLatest.rawQuery("SELECT sourceMacAddr from MESSAGE_TBL where UUID='"+UUID+"'",null);
                 String deviceAd=new String();
 
                 while(deviceAdCursor.moveToNext())
@@ -130,12 +130,12 @@ public class RatingsMain extends AppCompatActivity {
 
                 double average=0.0;int noOfMessages=0;
 
-                Cursor allMessagesFromDevice=mydatabase.rawQuery("SELECT UUID from MESSAGE_TBL where sourceMacAddr='"+deviceAd+"'",null);
+                Cursor allMessagesFromDevice=ConstantsClass.mydatabaseLatest.rawQuery("SELECT UUID from MESSAGE_TBL where sourceMacAddr='"+deviceAd+"'",null);
                 int noOfRatings=0;
                 while(allMessagesFromDevice.moveToNext())
                 {
                     String UUIDtemp=allMessagesFromDevice.getString(0);
-                    Cursor ratingsMes=mydatabase.rawQuery("SELECT * from RATINGS_TBL where UUID='"+UUIDtemp+"'",null);
+                    Cursor ratingsMes=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from RATINGS_TBL where UUID='"+UUIDtemp+"'",null);
                     if(!(ratingsMes.getCount()==0))
                     {
                         while(ratingsMes.moveToNext()) {
@@ -151,16 +151,16 @@ public class RatingsMain extends AppCompatActivity {
 
         Log.d("RatingsMain","Value of average and noOfMessages is:"+average+"::"+noOfMessages);
 
-                Cursor noOfEntries=mydatabase.rawQuery("SELECT * from USER_RATING_MAP_TBL where MacAd='"+deviceAd+"'",null);
+                Cursor noOfEntries=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from USER_RATING_MAP_TBL where MacAd='"+deviceAd+"'",null);
                 if(noOfEntries.getCount()>0)
                 {
-                    mydatabase.execSQL("UPDATE USER_RATING_MAP_TBL set rating="+average+",updated_by='SELF' WHERE MacAd='"+deviceAd+"'");
+                    ConstantsClass.mydatabaseLatest.execSQL("UPDATE USER_RATING_MAP_TBL set rating="+average+",updated_by='SELF' WHERE MacAd='"+deviceAd+"'");
                 }
                 else
                 {
-                    mydatabase.execSQL("INSERT INTO USER_RATING_MAP_TBL VALUES('"+deviceAd+"',"+average+",'SELF')");
+                    ConstantsClass.mydatabaseLatest.execSQL("INSERT INTO USER_RATING_MAP_TBL VALUES('"+deviceAd+"',"+average+",'SELF')");
                 }
-                /*Cursor cursorForBlackList=mydatabase.rawQuery("SELECT * from BLACKLIST_TBL where MacAd='"+deviceAd+"'",null);
+                /*Cursor cursorForBlackList=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from BLACKLIST_TBL where MacAd='"+deviceAd+"'",null);
                 String updated_by="SELF";
                 Double ratingPresent=0.0;
                 int flagForExists=0;
@@ -184,20 +184,20 @@ public class RatingsMain extends AppCompatActivity {
                 {
 
                     if(updated_by.equals("SELF") && flagForExists==0)
-                    mydatabase.execSQL("INSERT OR IGNORE INTO BLACKLIST_TBL VALUES('"+deviceAd+"','SELF',"+average+")");
+                    ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO BLACKLIST_TBL VALUES('"+deviceAd+"','SELF',"+average+")");
                     else
                         if(!updated_by.equals("SELF"));
                     {
                         average=0.2*ratingPresent+0.8*average;
-                        mydatabase.execSQL("INSERT OR IGNORE INTO BLACKLIST_TBL VALUES('"+deviceAd+"','SELF',"+average+")");
+                        ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO BLACKLIST_TBL VALUES('"+deviceAd+"','SELF',"+average+")");
                     }
                 }
                 else
                 {
-                    Cursor ifBlack=mydatabase.rawQuery("SELECT * from BLACKLIST_TBL where MacAd='"+deviceAd+"'",null);
+                    Cursor ifBlack=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from BLACKLIST_TBL where MacAd='"+deviceAd+"'",null);
                     if(ifBlack.getCount()>0)
                     {
-                        mydatabase.execSQL("DELETE from BLACKLIST_TBL where MacAd='"+deviceAd+"'");
+                        ConstantsClass.mydatabaseLatest.execSQL("DELETE from BLACKLIST_TBL where MacAd='"+deviceAd+"'");
                     }
                 }*/
             }

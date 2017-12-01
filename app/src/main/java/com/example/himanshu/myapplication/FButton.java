@@ -21,6 +21,8 @@ import android.widget.Button;
  * Created by hoang8f on 5/5/14.
  */
 
+//This is just a fancy button class that is shown in the Camera or Gallery activity buttons
+
 public class FButton extends Button implements View.OnTouchListener {
 
     //Custom values

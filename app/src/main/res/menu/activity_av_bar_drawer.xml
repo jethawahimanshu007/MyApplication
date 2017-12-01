@@ -50,8 +50,8 @@
             android:title="Ratings" />
         <item
             android:id="@+id/nav_wifi_dis"
-            android:icon="@drawable/ratings"
-            android:title="Ratings" />
+            android:icon="@drawable/marine"
+            android:title="Marine"/>
 
 
 

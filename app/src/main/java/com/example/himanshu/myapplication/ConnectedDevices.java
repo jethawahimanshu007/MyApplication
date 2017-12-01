@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
 
+//This is to show the list of nearby devices as well as the connected devices
 public class ConnectedDevices extends AppCompatActivity {
     Activity ac=this;
     Timer timer = new Timer();
@@ -21,12 +22,11 @@ public class ConnectedDevices extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_connected_devices);
-        final SQLiteDatabase mydatabase = openOrCreateDatabase(Constants.DATABASE_NAME, MODE_PRIVATE, null);
 
         final long delay=0;
         long period=5000;
 
-
+///Update the lists every 5 seconds
         try{
 
             timer.schedule(new TimerTask() {
@@ -35,19 +35,14 @@ public class ConnectedDevices extends AppCompatActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Log.d("ConnectedDevices","Called ConnectedDevices thread");
                             try {
-
+                                //Nearby devices list populated from the database
                                 ArrayList<String> devicesInRange = new ArrayList();
-
-                                 ListView lv = (ListView) findViewById(R.id.nearbyDevicesList);
-
-                                Cursor cursorForNearbyDevices = mydatabase.rawQuery("SELECT * from BLUETOOTH_DEVICES_IN_RANGE", null);
+                                ListView lv = (ListView) findViewById(R.id.nearbyDevicesList);
+                                Cursor cursorForNearbyDevices = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from BLUETOOTH_DEVICES_IN_RANGE", null);
 
                                 while (cursorForNearbyDevices.moveToNext()) {
-                                    Log.d("ConnectedDevices", "There are devices in range");
                                     String BTDeviceMacAddr = cursorForNearbyDevices.getString(0);
-                                    Log.d("ConnectedDevices", "BTDeviceMacAddr" + BTDeviceMacAddr);
                                     if(cursorForNearbyDevices.getString(1)!=null) {
                                         String BTDeviceName = cursorForNearbyDevices.getString(1);
                                         String RSSI=cursorForNearbyDevices.getString(2);
@@ -58,21 +53,18 @@ public class ConnectedDevices extends AppCompatActivity {
                                         devicesInRange.add(BTDeviceMacAddr);
                                     }
                                 }
-                                Cursor cursorForConnectedDevices = mydatabase.rawQuery("SELECT * from DEVICES_CURRENTLY_CONNECTED", null);
+                                //Connected devices from the database
+                                Cursor cursorForConnectedDevices = ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from DEVICES_CURRENTLY_CONNECTED", null);
                                 ArrayList<String> devicesConnected = new ArrayList();
-                                Log.d("ConnectedDevices","Number of rows in cursorForConnectedDevices are:"+cursorForConnectedDevices.getCount());
                                 if(cursorForConnectedDevices.getCount()!=0) {
                                     while (cursorForConnectedDevices.moveToNext()) {
                                         String BTDeviceMacAddr = cursorForConnectedDevices.getString(0);
-                                        Log.d("ConnectedDevices", "Connected device is:" + BTDeviceMacAddr);
                                         String time = cursorForConnectedDevices.getString(1);
                                         devicesConnected.add(BTDeviceMacAddr /*+ "--" + time*/);
                                     }
                                 }
-
+                                //Following lines are used to update the lists
                                 final ListView lv1 = (ListView) findViewById(R.id.connectedDevicesList);
-                                //devicesInRange.add("D0:87:E2:4E:7A:2C-- HimanshuTablet");
-                                Log.d("ConnectedDevices","Array devicesinRange is:"+ Arrays.toString(devicesInRange.toArray()));
 
                                 ArrayAdapter<String> adapter1 = new ArrayAdapter<String>(getBaseContext(),
                                         android.R.layout.simple_list_item_1, android.R.id.text1, devicesConnected);
@@ -95,9 +87,6 @@ public class ConnectedDevices extends AppCompatActivity {
         {
 
         }
-        //nearbyDevicesList
-        //connectedDevicesList
-
     }
     protected void onDestroy() {
         super.onDestroy();
