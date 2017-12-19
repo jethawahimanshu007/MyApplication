@@ -256,6 +256,7 @@ public class avBar extends AppCompatActivity
         }
         if(id==R.id.settings)
         {
+            //Intent intent = new Intent(this, Settings.class);
             Intent intent = new Intent(this, Settings.class);
             startActivity(intent);
         }

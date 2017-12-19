@@ -56,6 +56,22 @@ public class DbTableCreation {
         ConstantsClass.mydatabaseLatest.execSQL("CREATE TABLE IF NOT EXISTS MAC_TSR_NO_TBL(MacAdd VARCHAR,noOfTsrs INTEGER,PRIMARY KEY(MacAdd))");
         ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO MAC_TSR_NO_TBL VALUES('SELF',1)");
         ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO ROLE_TBL VALUES(0,'SELF')");
+        ConstantsClass.mydatabaseLatest.execSQL("CREATE TABLE IF NOT EXISTS HIGH_PRIO_TAGS_TBL(MacAddr VARCHAR,SIList VARCHAR,PRIMARY KEY(MACAddr))");
+        ConstantsClass.mydatabaseLatest.execSQL("CREATE TABLE IF NOT EXISTS COORDINATES_TBL(MacAddr VARCHAR, lat REAL, long REAL, PRIMARY KEY(MacAddr))");
+        ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO COORDINATES_TBL VALUES('SELF',0.0,0.0)");
+        //0 for push, 1 for pull
+        ConstantsClass.mydatabaseLatest.execSQL("CREATE TABLE IF NOT EXISTS OPERATION_MODE_TBL(MacAddr VARCHAR,mode INTEGER,PRIMARY KEY(MacAddr))");
+
+        Cursor cursorForNoOfRows=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from OPERATION_MODE_TBL where MacAddr='SELF'",null);
+        if(cursorForNoOfRows.getCount()==0)
+        ConstantsClass.mydatabaseLatest.execSQL("INSERT INTO OPERATION_MODE_TBL VALUES('SELF',0)");
+
+        ConstantsClass.mydatabaseLatest.execSQL("CREATE TABLE IF NOT EXISTS RADIUS_TBL(MacAddr VARCHAR,radius REAL,PRIMARY KEY(MacAddr))");
+        Cursor cursorForNoOfRowsRadius=ConstantsClass.mydatabaseLatest.rawQuery("SELECT * from RADIUS_TBL",null);
+        if(cursorForNoOfRowsRadius.getCount()==0)
+            ConstantsClass.mydatabaseLatest.execSQL("INSERT INTO RADIUS_TBL VALUES('SELF',1.0)");
+
+        ConstantsClass.mydatabaseLatest.execSQL("INSERT OR IGNORE INTO HIGH_PRIO_TAGS_TBL VALUES('SELF','')");
         insertIncentives();
         insertUUIDs(ConstantsClass.mydatabaseLatest,UUIDs);
 

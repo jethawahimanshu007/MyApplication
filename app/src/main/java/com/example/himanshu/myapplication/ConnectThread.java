@@ -210,11 +210,39 @@ class ConnectThread extends Thread {
             //This part is to share the no of TSRs matching requirement for a messsage to be shared
             //For example, if this no is set as 2 in the database, the other device will only transfer
             //those messages which are tagged with 2 keywords that I am interested in
-            Cursor cursorForTSRNoSelf=ConstantsClass.mydatabaseLatest.rawQuery("SELECT noOfTsrs FROM MAC_TSR_NO_TBL where MacAdd='SELF'",null);
-            cursorForTSRNoSelf.moveToNext();
-            int TSRno=cursorForTSRNoSelf.getInt(0);
+
             //Preamble string construction
-            String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TSRS + "::MessageSize:" + byteArrayTSRsToShare.length + "::Role:"+Role+"::"+ratingsDevices+"::"+TSRno+"::";
+            ///Himanshu--Work on changing this preamble---
+            //Send flag for pull and push--- if push, keep the preamble like this except add flag for push and remove priorityTags
+            //Else add radius and coordinates info and tags!!
+            Cursor cursorForMode=ConstantsClass.mydatabaseLatest.rawQuery("SELECT mode from OPERATION_MODE_TBL where MacAddr='SELF'",null);
+            int mode=0;
+            while(cursorForMode.moveToNext())
+            {
+                mode=cursorForMode.getInt(0);
+            }
+            Log.d("Settings","Mode of operation in DB inside ConnectThread is:"+mode);
+            String preambleString=new String();
+            if(mode==1)
+            {
+                Cursor cursorForTSRNoSelf=ConstantsClass.mydatabaseLatest.rawQuery("SELECT SIList FROM HIGH_PRIO_TAGS_TBL where MacAddr='SELF'",null);
+                cursorForTSRNoSelf.moveToNext();
+                String prioSIList=cursorForTSRNoSelf.getString(0);
+                Cursor cursorForCoords=ConstantsClass.mydatabaseLatest.rawQuery("SELECT lat,long FROM COORDINATES_TBL where MacAddr='SELF'",null);
+                cursorForCoords.moveToNext();
+                double latitude=cursorForCoords.getDouble(0);double longitude=cursorForCoords.getDouble(1);
+                String location=latitude+","+longitude;
+                Cursor cursorForRadius=ConstantsClass.mydatabaseLatest.rawQuery("SELECT radius FROM RADIUS_TBL where MacAddr='SELF'",null);
+                cursorForRadius.moveToNext();
+                double radius=cursorForRadius.getDouble(0);
+                preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TSRS + "::MessageSize:" + byteArrayTSRsToShare.length + "::Role:"+Role+"::"+ratingsDevices+"::"+mode+"::"+prioSIList+"::"+location+"::"+radius+"::";
+
+            }
+            else
+            {
+                preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TSRS + "::MessageSize:" + byteArrayTSRsToShare.length + "::Role:"+Role+"::"+ratingsDevices+"::"+mode+"::";
+            }
+            //String preambleString = "Preamble::MessageType:" + Constants.MESSAGE_TSRS + "::MessageSize:" + byteArrayTSRsToShare.length + "::Role:"+Role+"::"+ratingsDevices+"::"+prioSIList+"::";
             ConnectedThreadWithRequestCodes newConnectedThread = new ConnectedThreadWithRequestCodes((BluetoothSocket) pair.getValue(), context);
             Log.d("CTwRC","Sending TSRs to"+((BluetoothSocket) pair.getValue()).getRemoteDevice().getName()+"--haha  TSRs:"+TSRsToShare);
             //Preamble string sending

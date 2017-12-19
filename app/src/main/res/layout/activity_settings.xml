@@ -10,20 +10,78 @@
     android:baselineAligned="false">
 
     <TextView
-        android:id="@+id/settingsText"
-        android:layout_marginTop="100px"
+        android:id="@+id/PushPullText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select number of interests for message match"
+        android:text="Select the mode of operation"
         android:textStyle="bold"
         />
+    <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:id="@+id/radioGroupPushPull">
+        <RadioButton android:id="@+id/radio_push"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Push"
+            android:onClick="onRadioButtonClicked"/>
+        <RadioButton android:id="@+id/radio_pull"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pull"
+            android:onClick="onRadioButtonClicked"/>
+    </RadioGroup>
 
-    <Spinner
-        android:id="@+id/tsr_spinner"
-        android:layout_width="300px"
-        android:layout_marginLeft="150px"
-        android:layout_marginTop="200px"
-        android:layout_height="wrap_content" />
 
+        <TextView
+            android:id="@+id/settingsText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Input high priority tags and mark desired points on map"
+            android:textStyle="bold"
+            android:visibility="gone"
+            />
+        <EditText
+            android:id="@+id/priorityTags"
+            android:layout_width="fill_parent"
+            android:layout_height="0dp"
+            android:layout_weight="10"
+            android:hint="@string/tags"
+            android:visibility="gone"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="70"
+            android:id="@+id/mapLayout"
+            android:orientation="vertical"
+            android:visibility="gone">
+            </LinearLayout>
+    <TextView
+        android:id="@+id/radiusTV"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Radius around points on map in miles(optional)"
+        android:textStyle="bold"
+        android:visibility="gone"
+        />
+    <EditText
+        android:id="@+id/radius"
+        android:layout_width="fill_parent"
+        android:layout_height="0dp"
+        android:layout_weight="10"
+        android:visibility="gone"/>
+    <com.example.himanshu.myapplication.FButton
+        android:id="@+id/addPrioTags"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="10"
+        android:text="Add preferences"
+        android:visibility="gone"
+        fbutton:buttonColor="@color/fbutton_color_peter_river"
+        fbutton:shadowColor="@color/fbutton_color_belize_hole"
+        fbutton:shadowEnabled="true"
+        fbutton:shadowHeight="5dp"
+        fbutton:cornerRadius="5dp"/>
 
 </LinearLayout>

@@ -184,11 +184,8 @@ public class GeneralBTFuncs implements Runnable{
                             try {
                                 while (cursor.moveToNext()) {
                                     String deviceMacAddr = cursor.getString(0);
-                                    int deviceClass=cursor.getInt(3);
-
-                                    int RSSI=cursor.getInt(2);
                                     if (!(al.contains(deviceMacAddr))) {
-                                            al.add(deviceMacAddr+"--"+deviceClass);
+                                            al.add(deviceMacAddr);
                                     }
                                 }
                                 String devices[] = new String[al.size()];

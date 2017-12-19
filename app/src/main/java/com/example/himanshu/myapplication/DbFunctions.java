@@ -103,7 +103,7 @@ public class DbFunctions {
             Cursor cursorForDisConnectedDevices = mydatabase.rawQuery("SELECT * from DEVICE_DISCONNECTED_TIME where deviceMacAddr='" + deviceMacAddress + "' and deviceName='" + deviceName + "'", null);
             String sqlQuery="";
             if (cursorForDisConnectedDevices != null) {
-                sqlQuery = "UPDATE DEVICE_DISCONNECTED_TIME set currentTime=(datetime('now','localtime'))" + "where deviceMacAddr='" + deviceMacAddress + "','" + deviceName + "')";
+                sqlQuery = "UPDATE DEVICE_DISCONNECTED_TIME set currentTime=(datetime('now','localtime'))" + " WHERE deviceMacAddr='" + deviceMacAddress+"'";
             } else {
                 sqlQuery = "INSERT INTO DEVICE_DISCONNECTED_TIME(deviceMacAddr,deviceName) values ('" + deviceMacAddress + "','" + deviceName + "')";
             }
