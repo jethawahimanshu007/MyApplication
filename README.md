@@ -18,7 +18,8 @@ Following image shows the home screen for the application:
 
 
 This screenshot shows the screen of Neighbors, neighbors' list shows all the devices in bluetooth range whereas connected devices' list shows all the devices connected via bluetooth to this device :<br>
-<img src="https://github.com/jethawahimanshu007/PhotoShare/blob/master/MessageDetails.png" width="250">
+<img src="https://github.com/jethawahimanshu007/PhotoShare/blob/master/MessageDetails.png" width="250"> 
+<br>
 This image shows the screen for selecting mode of operation a device can be in:
 <br>
 <img src="https://github.com/jethawahimanshu007/PhotoShare/blob/master/PushPull.png" width="250">
